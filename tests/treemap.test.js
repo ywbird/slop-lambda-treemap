@@ -93,13 +93,13 @@ test('변수 하나는 전체 영역을 차지는 var 셀', () => {
   assert.equal(cell.color, colorForKey('free:x'));
 });
 
-test('추상화는 "테두리를 가진 body"가 하나의 노드 — body는 테두리 안쪽', () => {
+test('추상화는 "테두리를 가진 body"가 하나의 노드 — body가 노드를 채움', () => {
   const cell = layoutTreemap(parse('λx. x'), FULL);
   assert.equal(cell.kind, 'lambda');
   assert.ok(cell.bindingId >= 1, 'bindingId 존재');
   assertRect(cell.rect, FULL, 'λ 노드 셀 = 전체 영역(원자적)');
   assert.equal(cell.body.kind, 'var');
-  assertRect(cell.body.rect, { x: 5, y: 5, w: 90, h: 90 }, 'body는 테두리 안쪽');
+  assertRect(cell.body.rect, { x: 2, y: 2, w: 96, h: 96 }, 'body는 테두리 바로 안쪽');
   // 묶인 변수 x의 색 키는 λ의 bindingId
   assert.equal(cell.body.colorKey, cell.bindingId);
 });
@@ -121,59 +121,54 @@ test('추상화는 교차 분할에 한 단계로 반영: λ를 거치면 방향
 test('깊이 0의 적용은 좌우 분할 (func=왼쪽, arg=오른쪽), 자식 사이 간격 있음', () => {
   const cell = layoutTreemap(parse('x y'), FULL);
   assert.equal(cell.kind, 'app');
-  // 간격 = gapFor(100x100) = 5
-  assertRect(cell.func.rect, { x: 0, y: 0, w: 47.5, h: 100 }, 'func 왼쪽');
-  assertRect(cell.arg.rect, { x: 52.5, y: 0, w: 47.5, h: 100 }, 'arg 오른쪽');
+  // 간격 = CELL_GAP(10)
+  assertRect(cell.func.rect, { x: 0, y: 0, w: 45, h: 100 }, 'func 왼쪽');
+  assertRect(cell.arg.rect, { x: 55, y: 0, w: 45, h: 100 }, 'arg 오른쪽');
 });
 
-test('app 자식 간 간격과 λ 테두리-본문 간격은 같은 상수', () => {
+test('모든 형제 간격은 균일 상수 — λ가 포함된 분할도 예외 없음', () => {
   const appCell = layoutTreemap(parse('x y'), FULL);
-  const lamCell = layoutTreemap(parse('λq. q'), FULL);
   const appGap = appCell.arg.rect.x - (appCell.func.rect.x + appCell.func.rect.w);
-  const lambdaPad = lamCell.body.rect.x - lamCell.rect.x;
-  assert.ok(approx(appGap, 5), `app 간격 ${appGap}`);
-  assert.ok(approx(lambdaPad, 5), `λ 테두리 간격 ${lambdaPad}`);
-});
+  assert.ok(approx(appGap, 10), `일반 app 간격 ${appGap}`);
 
-test('λ가 포함된 분할은 간격 0 — λ 안 변수와 인접 변수 거리 = 테두리 간격', () => {
-  const cell = layoutTreemap(parse('(λy. a) b'), FULL);
-  assert.equal(cell.kind, 'app');
-  const [lam, bVar] = [cell.func, cell.arg];
-  assert.ok(approx(bVar.rect.x - (lam.rect.x + lam.rect.w), 0), 'λ|b 간격 없음');
-  const pad = lam.body.rect.x - lam.rect.x;
-  const varGap = bVar.rect.x - (lam.body.rect.x + lam.body.rect.w);
-  assert.ok(approx(varGap, pad), `변수 간 ${varGap} ≠ 테두리 간격 ${pad}`);
+  // λ 옆에 있는 셀과의 간격도 동일
+  const withLambda = layoutTreemap(parse('(λy. a) b'), FULL);
+  const lamGap = withLambda.arg.rect.x - (withLambda.func.rect.x + withLambda.func.rect.w);
+  assert.ok(approx(lamGap, 10), `λ 인접 간격 ${lamGap}`);
+
+  // λ 내용 패딩은 테두리 두께(2)만 — 노드를 내용이 채움
+  const lamCell = layoutTreemap(parse('λq. q'), FULL);
+  assert.ok(approx(lamCell.body.rect.x - lamCell.rect.x, 2));
 });
 
 test('깊이 1의 적용은 상하 분할', () => {
   const cell = layoutTreemap(parse('x y z'), FULL);
   assert.equal(cell.kind, 'app');
-  const rootGap = 5;
+  const rootGap = 10;
   const funcW = (100 - rootGap) * 2 / 3;
   assert.ok(approx(cell.func.rect.w, funcW), 'func는 (100-gap)의 2/3');
   assert.ok(approx(cell.arg.rect.x, funcW + rootGap), 'arg는 func 옆에 간격을 두고');
   assert.ok(approx(cell.arg.rect.w, 100 - rootGap - funcW), 'arg는 1/3');
   // 내부 app(x y)는 깊이 1 → 상하 분할, 간격도 동일 상수
   const inner = cell.func;
-  const innerGap = 5;
+  const innerGap = 10;
   assert.ok(approx(inner.func.rect.h, (100 - innerGap) / 2), 'x 위쪽 절반');
   assert.ok(approx(inner.arg.rect.y, (100 - innerGap) / 2 + innerGap), 'y 아래쪽(간격 후)');
 });
 
 test('깊이가 달라도 셀 간격은 균일(상수 간격)', () => {
   const cell = layoutTreemap(parse('x y z'), FULL);
-  // a|b (깊이 1 분할) 와 (ab)|c (깊이 0 분할)의 간격이 같아야 함
   const innerGap = cell.func.arg.rect.y - (cell.func.func.rect.y + cell.func.func.rect.h);
   const rootGap = cell.arg.rect.x - (cell.func.rect.x + cell.func.rect.w);
   assert.ok(approx(innerGap, rootGap), `깊이1 ${innerGap} ≠ 깊이0 ${rootGap}`);
-  assert.ok(approx(rootGap, 5), '상수 간격 5');
+  assert.ok(approx(rootGap, 10), '상수 간격 10');
 });
 
 test('면적은 가중치 비율로 분배', () => {
   const cell = layoutTreemap(parse('x (y z)'), FULL);
-  assert.ok(approx(cell.func.rect.w, 95 / 3), 'x(가중치1)은 (100-gap)의 1/3');
-  assert.ok(approx(cell.arg.rect.x, 95 / 3 + 5), 'y z는 간격 뒤');
-  assert.ok(approx(cell.arg.rect.w, 95 * 2 / 3), 'y z(가중치2)는 2/3');
+  assert.ok(approx(cell.func.rect.w, 90 / 3), 'x(가중치1)은 (100-gap)의 1/3');
+  assert.ok(approx(cell.arg.rect.x, 90 / 3 + 10), 'y z는 간격 뒤');
+  assert.ok(approx(cell.arg.rect.w, 90 * 2 / 3), 'y z(가중치2)는 2/3');
 });
 
 // ---------- 색상/바인딩 ----------
@@ -238,7 +233,7 @@ test('findCellByNode: AST 노드 참조로 셀을 찾는다', () => {
   assert.strictEqual(findCellByNode(cell, ast), cell);
   const funcCell = findCellByNode(cell, ast.func);
   assert.strictEqual(funcCell.node, ast.func);
-  assert.ok(rectEq(funcCell.rect, { x: 0, y: 0, w: 95 * 2 / 3, h: 100 }));
+  assert.ok(rectEq(funcCell.rect, { x: 0, y: 0, w: 90 * 2 / 3, h: 100 }));
   assert.equal(findCellByNode(cell, Var('q')), null);
 });
 

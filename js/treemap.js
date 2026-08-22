@@ -6,7 +6,8 @@
 //   배치되며, 교차 분할에서 λ가 한 단계로 반영된다(부모가 좌우면 body 내부
 //   분할은 상하 — body를 깊이+1로 배치).
 // - 적용(app): func(대상 식)과 arg(대입 식)을 깊이 홀짝에 따라 좌우/상하 분할.
-// 면적은 노드 수 비율로 분배하고, 간격은 상수(λ 테두리가 경계인 분할은 0).
+// 면적은 노드 수 비율로 분배하고, 형제 셀 간격은 모든 깊이·모든 인접에서
+// 균일한 상수(CELL_GAP)를 쓴다.
 
 const FREE_PREFIX = 'free:';
 
@@ -61,9 +62,11 @@ function insetRect(rect, pad) {
   };
 }
 
-// 셀 간 시각 간격/테두리-본문 간격 — 깊이나 셀 크기와 무관하게 상수로 균일하게.
-// (크기 비례 간격은 루트는 넓고 깊은 곳은 1px로 좁아져 불균일해 보임)
-const CELL_GAP = 5;
+// 모든 형제 셀(app의 func|arg, λ를 포함한 어떤 인접이든) 사이의 균일 간격.
+const CELL_GAP = 10;
+// λ 내용 패딩 = 테두리 두께만큼. 내용이 노드를 채우게 하되
+// 중첩 λ의 테두리가 정확히 겹쳐 보이지 않게 하는 최소값.
+const LAMBDA_PAD = 2;
 
 function gapFor(rect) {
   // 아주 작은 셀에서 자식이 음수가 되지 않도록 크기 상한만 둔다
@@ -100,28 +103,27 @@ function layout(node, rect, depth, env) {
       const childEnv = new Map(env);
       childEnv.set(node.param, node.bindingId);
       // 추상화는 "테두리를 가진 body"가 하나의 노드: 이 셀 자체가 원자적이다.
-      // body는 테두리 안쪽에, 깊이 +1로 배치해 교차 분할(가로/세로 번갈아)에
-      // 추상화가 한 단계로 반영되게 한다.
+      // body는 테두리 바로 안쪽(LAMBDA_PAD)에, 깊이 +1로 배치해 교차 분할
+      // (가로/세로 번갈아)에 추상화가 한 단계로 반영되게 한다.
       return {
         kind: 'lambda',
         node,
         rect,
         bindingId: node.bindingId,
         color: colorForKey(node.bindingId),
-        body: layout(node.body, insetRect(rect, gapFor(rect)), depth + 1, childEnv),
+        body: layout(node.body, insetRect(rect, LAMBDA_PAD), depth + 1, childEnv),
       };
     }
     case 'app': {
       const funcWeight = weightOf(node.func);
       const argWeight = weightOf(node.arg);
-      // λ 래퍼는 테두리 자체가 경계 → λ가 포함된 분할은 간격을 두지 않는다.
-      // 그래야 "λ 안 변수 → 인접 변수" 거리가 테두리-본문 간격과 같아진다.
-      const hasLambda = node.func.type === 'lambda' || node.arg.type === 'lambda';
+      // 모든 형제 셀 간격은 균일(λ 예외 없음) — 테두리는 노드의 면이므로
+      // 간격을 별도로 두지 않는다.
       const [funcRect, argRect] = splitRect(
         rect,
         funcWeight / (funcWeight + argWeight),
         depth % 2 === 0,
-        hasLambda ? 0 : gapFor(rect)
+        gapFor(rect)
       );
       return {
         kind: 'app',
