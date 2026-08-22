@@ -8,8 +8,18 @@ export function Var(name) {
   return { type: 'var', name };
 }
 
-export function Lambda(param, body) {
-  return { type: 'lambda', param, body };
+// 바인딩 ID: 각 λ 바인딩의 안정 식별자. 축약 전후에 같은 바인딩을 같은 색으로
+// 그리기 위한 키로 쓰인다(4단계 treemap 색상). enumerable이 아니므로
+// deepEqual/JSON 비교에는 잡히지 않는다.
+let nextBindingId = 1;
+
+export function Lambda(param, body, bindingId = nextBindingId++) {
+  const node = { type: 'lambda', param, body };
+  Object.defineProperty(node, 'bindingId', {
+    value: bindingId,
+    enumerable: false,
+  });
+  return node;
 }
 
 export function App(func, arg) {

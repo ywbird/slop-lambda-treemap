@@ -138,3 +138,33 @@ test('reduceAll: 최대 스텝 초과 방지 (오메가)', () => {
   assert.equal(r.terminated, 'max-steps');
   assert.equal(r.steps, 50);
 });
+
+// ---------- bindingId 유지 (treemap 색 안정성) ----------
+
+test('bindingId: 파싱할 때마다 λ마다 고유 ID 부여', () => {
+  const ast = parse('(λx. x) (λx. x)');
+  assert.notEqual(ast.func.bindingId, ast.arg.bindingId);
+});
+
+test('bindingId: 축약으로 삽입된 λ는 원래 ID 유지', () => {
+  const ast = parse('(λx. x) (λy. y)');
+  const argId = ast.arg.bindingId;
+  const r = reduceStep(ast);
+  assert.equal(r.expr.bindingId, argId);
+});
+
+test('bindingId: 추상화 body 축약 후에도 루트 ID 유지', () => {
+  const ast = parse('λx. (λy. y) x');
+  const rootId = ast.bindingId;
+  const r = reduceStep(ast);
+  assert.equal(r.expr.type, 'lambda');
+  assert.equal(r.expr.bindingId, rootId);
+});
+
+test('bindingId: 알파 변환으로 이름이 바뀌어도 ID 유지', () => {
+  const ast = parse('(λx. λy. x) y');
+  const innerId = ast.func.body.bindingId; // λy
+  const r = reduceStep(ast); // → λy1. y
+  assert.equal(r.expr.param, 'y1');
+  assert.equal(r.expr.bindingId, innerId);
+});

@@ -73,15 +73,16 @@ export function subst(expr, name, replacement) {
       const replacementFree = freeVariables(replacement);
       if (replacementFree.has(expr.param)) {
         // 그대로 대입하면 replacement의 자유 변수가 이 λ에 붙잡힌다 → 알파 변환
+        // 이름은 바뀌어도 같은 바인딩이므로 bindingId는 유지한다(색 안정성).
         const taken = new Set([
           ...freeVariables(expr.body),
           ...replacementFree,
         ]);
         const fresh = freshName(expr.param, taken);
         const renamedBody = subst(expr.body, expr.param, Var(fresh));
-        return Lambda(fresh, subst(renamedBody, name, replacement));
+        return Lambda(fresh, subst(renamedBody, name, replacement), expr.bindingId);
       }
-      return Lambda(expr.param, subst(expr.body, name, replacement));
+      return Lambda(expr.param, subst(expr.body, name, replacement), expr.bindingId);
     }
     default:
       throw new Error(`알 수 없는 노드 타입: ${expr.type}`);
@@ -124,7 +125,11 @@ export function reduceStep(node) {
     case 'lambda': {
       const body = reduceStep(node.body);
       if (body.reduced) {
-        return { reduced: true, expr: Lambda(node.param, body.expr), redex: body.redex };
+        return {
+          reduced: true,
+          expr: Lambda(node.param, body.expr, node.bindingId),
+          redex: body.redex,
+        };
       }
       return { reduced: false, expr: node };
     }
