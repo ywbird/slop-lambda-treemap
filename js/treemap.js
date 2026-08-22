@@ -1,10 +1,11 @@
 // 트리맵 레이아웃: AST → 사각형(rect) 트리 + 바인딩 기반 고유 색.
 //
-// 렌더링 규칙(5단계 renderer가 이 트리를 그린다):
+// 모든 AST 노드(변수, 추상화, 적용)가 트리맵에서 하나의 노드로 대응된다:
 // - 변수(var): 자신을 묶은 λ의 bindingId(자유 변수면 이름) 기반 고유 색 셀
-// - 추상화(lambda): 테두리만 그리는 셀, body는 패딩 안쪽에 배치
+// - 추상화(lambda): 그 자체가 테두리만 그리는 노드 셀. body는 내부가 아니라
+//   형제 영역에 배치된다 (λ노드 | body 분할)
 // - 적용(app): func(대상 식)과 arg(대입 식)을 깊이 홀짝에 따라 좌우/상하 분할.
-//   면적은 서브트리의 변수 리프 수(가중치) 비율로 분배한다.
+// 면적은 노드 수(가중치) 비율로 분배하고, 모든 분할에 같은 공식의 간격을 둔다.
 
 const FREE_PREFIX = 'free:';
 
@@ -32,8 +33,8 @@ export function colorForKey(key) {
 }
 
 /**
- * 서브트리의 변수 리프 수 — 면적 분배 가중치.
- * λ 파라미터 자체는 셀이 아니므로 body만 센다.
+ * 서브트리의 노드 수(면적 가중치). 모든 노드가 1씩 기여한다:
+ * 변수 리프 1, λ 노드 자체 1(+ body), app은 func+arg.
  * @param {object} node
  * @returns {number}
  */
@@ -42,7 +43,7 @@ export function weightOf(node) {
     case 'var':
       return 1;
     case 'lambda':
-      return weightOf(node.body);
+      return 1 + weightOf(node.body);
     case 'app':
       return weightOf(node.func) + weightOf(node.arg);
     default:
@@ -50,16 +51,7 @@ export function weightOf(node) {
   }
 }
 
-function insetRect(rect, pad) {
-  return {
-    x: rect.x + pad,
-    y: rect.y + pad,
-    w: Math.max(0, rect.w - pad * 2),
-    h: Math.max(0, rect.h - pad * 2),
-  };
-}
-
-/** 셀 간 시각 간격 — λ 테두리와 body 사이 패딩, app 자식 사이 간격이 같은 값 */
+/** 셀 간 시각 간격 — 모든 분할(app, λ노드|body)이 같은 공식 */
 function gapFor(rect) {
   return Math.max(1, Math.min(8, Math.min(rect.w, rect.h) * 0.05));
 }
@@ -93,27 +85,31 @@ function layout(node, rect, depth, env) {
     case 'lambda': {
       const childEnv = new Map(env);
       childEnv.set(node.param, node.bindingId);
+      // 추상화는 그 자체가 하나의 노드: λ 노드 셀(테두리만)과 body를
+      // 형제로 분할한다. 방향(좌우/상하)은 app과 같은 깊이 교차 규칙.
+      const [nodeRect, bodyRect] = splitRect(
+        rect,
+        1 / (1 + weightOf(node.body)),
+        depth % 2 === 0,
+        gapFor(rect)
+      );
       return {
         kind: 'lambda',
         node,
-        rect,
+        rect: nodeRect,
         bindingId: node.bindingId,
         color: colorForKey(node.bindingId),
-        body: layout(node.body, insetRect(rect, gapFor(rect)), depth + 1, childEnv),
+        body: layout(node.body, bodyRect, depth + 1, childEnv),
       };
     }
     case 'app': {
       const funcWeight = weightOf(node.func);
       const argWeight = weightOf(node.arg);
-      // λ 테두리 자체가 곧 경계 역할을 하므로 λ가 포함된 분할은 간격을 두지
-      // 않는다. 그래야 "λ 안 변수 → 인접 변수" 거리가 테두리-본문 패딩과 같아진다.
-      // (간격을 두면 패딩 + 간격으로 정확히 2배가 됨)
-      const hasLambda = node.func.type === 'lambda' || node.arg.type === 'lambda';
       const [funcRect, argRect] = splitRect(
         rect,
         funcWeight / (funcWeight + argWeight),
         depth % 2 === 0,
-        hasLambda ? 0 : gapFor(rect)
+        gapFor(rect)
       );
       return {
         kind: 'app',

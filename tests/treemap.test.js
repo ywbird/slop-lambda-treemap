@@ -32,10 +32,10 @@ test('weightOf: 변수 리프 수를 센다', () => {
   assert.equal(weightOf(parse('(x y) (z w)')), 4);
 });
 
-test('weightOf: λ 파라미터는 셀이 아니므로 body만 센다', () => {
-  assert.equal(weightOf(parse('λx. x')), 1);
-  assert.equal(weightOf(parse('λx y. x')), 1);
-  assert.equal(weightOf(parse('λx. x y')), 2);
+test('weightOf: 모든 노드가 1씩 기여 (λ 노드 자체 포함)', () => {
+  assert.equal(weightOf(parse('λx. x')), 2); // λ노드 + x
+  assert.equal(weightOf(parse('λx y. x')), 3); // λx + λy + x
+  assert.equal(weightOf(parse('λx. x y')), 3); // λ노드 + x + y
 });
 
 // ---------- colorForKey ----------
@@ -93,13 +93,14 @@ test('변수 하나는 전체 영역을 차지는 var 셀', () => {
   assert.equal(cell.color, colorForKey('free:x'));
 });
 
-test('추상화는 body를 패딩 안쪽에 배치', () => {
+test('추상화는 그 자체가 하나의 노드 셀이고 body와 형제 분할된다', () => {
   const cell = layoutTreemap(parse('λx. x'), FULL);
   assert.equal(cell.kind, 'lambda');
   assert.ok(cell.bindingId >= 1, 'bindingId 존재');
+  // 깊이 0 좌우 분할, 간격 5: λ노드 | body
+  assertRect(cell.rect, { x: 0, y: 0, w: 47.5, h: 100 }, 'λ 노드 셀(왼쪽)');
   assert.equal(cell.body.kind, 'var');
-  // pad = min(8, 100*0.05) = 5
-  assertRect(cell.body.rect, { x: 5, y: 5, w: 90, h: 90 }, 'body 패딩');
+  assertRect(cell.body.rect, { x: 52.5, y: 0, w: 47.5, h: 100 }, 'body(오른쪽)');
   // 묶인 변수 x의 색 키는 λ의 bindingId
   assert.equal(cell.body.colorKey, cell.bindingId);
 });
@@ -112,25 +113,22 @@ test('깊이 0의 적용은 좌우 분할 (func=왼쪽, arg=오른쪽), 자식 �
   assertRect(cell.arg.rect, { x: 52.5, y: 0, w: 47.5, h: 100 }, 'arg 오른쪽');
 });
 
-test('같은 크기 영역에서 app 자식 간 간격은 λ body 패딩과 동일', () => {
+test('모든 분할(app, λ노드|body)의 간격은 같은 공식', () => {
   const appCell = layoutTreemap(parse('x y'), FULL);
-  const lambdaCell = layoutTreemap(parse('λq. q'), FULL);
+  const lamCell = layoutTreemap(parse('λq. q'), FULL);
   const appGap = appCell.arg.rect.x - (appCell.func.rect.x + appCell.func.rect.w);
-  const lambdaPad = lambdaCell.body.rect.x - lambdaCell.rect.x;
+  const lamGap = lamCell.body.rect.x - (lamCell.rect.x + lamCell.rect.w);
   assert.ok(appGap > 0, '간격은 양수');
-  assert.ok(approx(appGap, lambdaPad), `app 간격 ${appGap} ≠ λ 패딩 ${lambdaPad}`);
+  assert.ok(approx(appGap, lamGap), `app 간격 ${appGap} ≠ λ 분할 간격 ${lamGap}`);
 });
 
-test('λ가 포함된 분할은 간격 0 — λ 안 변수와 인접 변수 거리 = 패딩', () => {
+test('λ를 거쳐 인접한 변수 사이 간격은 이중으로 커지지 않음', () => {
   const cell = layoutTreemap(parse('(λy. a) b'), FULL);
-  assert.equal(cell.kind, 'app');
-  const [lam, bVar] = [cell.func, cell.arg];
-  // λ 셀과 b 셀 사이 간격 없음
-  assert.ok(approx(bVar.rect.x - (lam.rect.x + lam.rect.w), 0));
-  // λ 안쪽 변수 a에서 바깥 변수 b까지의 거리 == 테두리-본문 패딩
-  const pad = lam.body.rect.x - lam.rect.x;
-  const varGap = bVar.rect.x - (lam.body.rect.x + lam.body.rect.w);
-  assert.ok(approx(varGap, pad), `변수 간 ${varGap} ≠ 패딩 ${pad}`);
+  const aCell = cell.func.body; // λ 안쪽 body의 a
+  const bCell = cell.arg;
+  const gap = bCell.rect.x - (aCell.rect.x + aCell.rect.w);
+  const rootGap = 5; // gapFor(100x100)
+  assert.ok(approx(gap, rootGap), `변수 간 ${gap} ≠ app 간격 ${rootGap}`);
 });
 
 test('깊이 1의 적용은 상하 분할', () => {
@@ -185,7 +183,7 @@ test('축약 후에도 색 키 유지 — (λx. x) (λy. y) 예시', async () =>
 
 // ---------- 구조 검증 ----------
 
-test('모든 셀은 부모 영역 안에 contained', () => {
+test('모든 셀은 할당 영역 안에 contained', () => {
   function contains(outer, inner) {
     return (
       inner.x >= outer.x - 1e-6 &&
@@ -195,18 +193,17 @@ test('모든 셀은 부모 영역 안에 contained', () => {
     );
   }
   const cell = layoutTreemap(parse('(λx. x y) (a b c)'), FULL);
-  function walk(c) {
+  // λ의 body는 λ노드와 같은 영역을 공유하는 형제이므로 region을 함께 내려간다
+  function walk(c, region) {
+    assert.ok(contains(region, c.rect), '셀은 할당 영역 안');
     if (c.kind === 'lambda') {
-      assert.ok(contains(c.rect, c.body.rect), 'λ body 포함');
-      walk(c.body);
+      walk(c.body, region);
     } else if (c.kind === 'app') {
-      assert.ok(contains(c.rect, c.func.rect), 'app func 포함');
-      assert.ok(contains(c.rect, c.arg.rect), 'app arg 포함');
-      walk(c.func);
-      walk(c.arg);
+      walk(c.func, c.rect);
+      walk(c.arg, c.rect);
     }
   }
-  walk(cell);
+  walk(cell, FULL);
 });
 
 // ---------- 셀 탐색 헬퍼 (애니메이션용) ----------
