@@ -99,15 +99,16 @@ function layout(node, rect, depth, env) {
       const childEnv = new Map(env);
       childEnv.set(node.param, node.bindingId);
       // 추상화는 "테두리를 가진 body"가 하나의 노드: 이 셀 자체가 원자적이다.
-      // body는 테두리에서 간격만큼 안쪽에, 깊이 +1로 배치해 교차 분할
-      // (가로/세로 번갈아)에 추상화가 한 단계로 반영되게 한다.
+      // body는 테두리 굵기(cellGap) + 테두리-본문 여백(cellGap)만큼 안쪽에,
+      // 깊이 +1로 배치해 교차 분할(가로/세로 번갈아)에 추상화가 한 단계로
+      // 반영되게 한다. 즉 테두리와 body 사이 여백이 노드 간 간격과 같다.
       return {
         kind: 'lambda',
         node,
         rect,
         bindingId: node.bindingId,
         color: colorForKey(node.bindingId),
-        body: layout(node.body, insetRect(rect, cellGap(rect)), depth + 1, childEnv),
+        body: layout(node.body, insetRect(rect, cellGap(rect) * 2), depth + 1, childEnv),
       };
     }
     case 'app': {

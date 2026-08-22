@@ -93,14 +93,14 @@ test('변수 하나는 전체 영역을 차지는 var 셀', () => {
   assert.equal(cell.color, colorForKey('free:x'));
 });
 
-test('추상화는 "테두리를 가진 body"가 하나의 노드 — body는 패딩 안쪽', () => {
+test('추상화는 "테두리를 가진 body"가 하나의 노드 — 테두리와 body 사이 여백 유지', () => {
   const cell = layoutTreemap(parse('λx. x'), FULL);
   assert.equal(cell.kind, 'lambda');
   assert.ok(cell.bindingId >= 1, 'bindingId 존재');
   assertRect(cell.rect, FULL, 'λ 노드 셀 = 전체 영역(원자적)');
   assert.equal(cell.body.kind, 'var');
-  // pad = min(8, 100*0.05) = 5 (처음 방식: 크기 비례)
-  assertRect(cell.body.rect, { x: 5, y: 5, w: 90, h: 90 }, 'body는 테두리에서 패딩만큼 안쪽');
+  // 패딩 = 테두리 굵기(5) + 테두리-본문 여백(5) = 10
+  assertRect(cell.body.rect, { x: 10, y: 10, w: 80, h: 80 }, 'body는 테두리+여백 안쪽');
   // 묶인 변수 x의 색 키는 λ의 bindingId
   assert.equal(cell.body.colorKey, cell.bindingId);
 });
@@ -127,13 +127,9 @@ test('깊이 0의 적용은 좌우 분할 (func=왼쪽, arg=오른쪽), 자식 �
   assertRect(cell.arg.rect, { x: 52.5, y: 0, w: 47.5, h: 100 }, 'arg 오른쪽');
 });
 
-test('노드 간 간격 = λ 테두리-본문 간격 (같은 공식)', () => {
+test('노드 간 간격 = 테두리-본문 여백 (테두리 굵기와 같은 공식)', () => {
   const appCell = layoutTreemap(parse('x y'), FULL);
   const appGap = appCell.arg.rect.x - (appCell.func.rect.x + appCell.func.rect.w);
-  const lamCell = layoutTreemap(parse('λq. q'), FULL);
-  const pad = lamCell.body.rect.x - lamCell.rect.x;
-  assert.ok(appGap > 0, '간격은 양수');
-  assert.ok(approx(appGap, pad), `app 간격 ${appGap} ≠ λ 패딩 ${pad}`);
   assert.ok(approx(appGap, 5), 'FULL(100x100)에서는 5');
 
   // λ가 인접한 분할도 동일 공식
@@ -141,9 +137,10 @@ test('노드 간 간격 = λ 테두리-본문 간격 (같은 공식)', () => {
   const lamGap = withLambda.arg.rect.x - (withLambda.func.rect.x + withLambda.func.rect.w);
   assert.ok(approx(lamGap, 5), `λ 인접 간격 ${lamGap}`);
 
-  // λ 내부 패딩도 같은 공식 — FULL(100x100)에서 5
-  const lamCell2 = layoutTreemap(parse('λq. q'), FULL);
-  assert.ok(approx(lamCell2.body.rect.x - lamCell2.rect.x, 5), 'λ 패딩 = min(8, 5%)');
+  // 테두리 굵기 = cellGap(5), 테두리와 body 사이 여백도 cellGap과 동일
+  const lamCell = layoutTreemap(parse('λq. q'), FULL);
+  const pad = lamCell.body.rect.x - lamCell.rect.x; // 테두리(5) + 여백
+  assert.ok(approx(pad - 5, appGap), `여백 ${pad - 5} ≠ 노드 간격 ${appGap}`);
 });
 
 test('깊이 1의 적용은 상하 분할', () => {
