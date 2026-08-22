@@ -70,6 +70,7 @@ function commitStep(result, after) {
   updateButtons();
   animator.animateRedex({
     oldAst,
+    newAst: state.ast,
     redex: result.redex,
     onDone: () => {
       state.animating = false;

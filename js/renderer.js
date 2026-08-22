@@ -50,9 +50,37 @@ export class TreemapRenderer {
     this.draw();
   }
 
-  /** 현재 그려진 레이아웃 위에 셀 하나를 겹쳐 그린다(애니메이션 오버레이용). */
-  drawOverlay(cell) {
-    this._drawCell(cell);
+  /**
+   * 애니메이션 프레임용: 배경 위에 보간된 셀 트리를 그리고,
+   * 소비되는 λ 테두리 같은 고스트를 지정된 투명도로 겹쳐 그린다.
+   * @param {object} tree morph 중간 셀 트리
+   * @param {{cell: object, alpha: number}[]} [ghosts]
+   */
+  renderMorph(tree, ghosts = []) {
+    this.layout = null;
+    this.draw();
+    this._drawCell(tree);
+    for (const ghost of ghosts) {
+      this.ctx.save();
+      this.ctx.globalAlpha = ghost.alpha;
+      this._drawLambdaBorder(ghost.cell, ghost.cell.rect);
+      this.ctx.restore();
+    }
+  }
+
+  /** λ 셀의 테두리를 그린다(선이 rect 안쪽에 남도록). */
+  _drawLambdaBorder(cell, rect) {
+    const { ctx } = this;
+    const lineWidth = Math.max(1.5, Math.min(3, Math.min(rect.w, rect.h) * 0.05));
+    const half = lineWidth / 2;
+    ctx.strokeStyle = cell.color;
+    ctx.lineWidth = lineWidth;
+    ctx.strokeRect(
+      rect.x + half,
+      rect.y + half,
+      Math.max(0, rect.w - lineWidth),
+      Math.max(0, rect.h - lineWidth)
+    );
   }
 
   draw() {
@@ -76,18 +104,7 @@ export class TreemapRenderer {
         break;
       }
       case 'lambda': {
-        const { ctx } = this;
-        const lineWidth = Math.max(1.5, Math.min(3, Math.min(r.w, r.h) * 0.05));
-        ctx.strokeStyle = cell.color;
-        ctx.lineWidth = lineWidth;
-        // 선이 셀 영역 안쪽에 그려지도록 반 폭만 안으로 당긴다
-        const half = lineWidth / 2;
-        ctx.strokeRect(
-          r.x + half,
-          r.y + half,
-          Math.max(0, r.w - lineWidth),
-          Math.max(0, r.h - lineWidth)
-        );
+        this._drawLambdaBorder(cell, r);
         this._drawCell(cell.body);
         break;
       }
