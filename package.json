@@ -5,6 +5,6 @@
   "type": "module",
   "description": "람다 대수 식을 트리맵으로 시각화하고 베타 축약을 애니메이션으로 보여주는 웹 앱 (라이브러리 없음)",
   "scripts": {
-    "test": "node --test tests/"
+    "test": "node --test"
   }
 }
