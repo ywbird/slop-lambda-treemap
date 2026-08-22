@@ -1,9 +1,9 @@
 // 앱 진입점: 파싱 → 한 스텝/자동 축약(애니메이션) → 트리맵 렌더링.
 
 import { parse } from './parser.js';
-import { dumpAst, exprToString } from './ast.js';
+import { dumpAst } from './ast.js';
 import { reduceStep } from './reducer.js';
-import { layoutTreemap } from './treemap.js';
+import { layoutTreemap, exprToSegments } from './treemap.js';
 import { TreemapRenderer } from './renderer.js';
 import { ReductionAnimator } from './animator.js';
 
@@ -29,13 +29,32 @@ const state = {
   autoRunning: false,
 };
 
-function render() {
-  if (state.ast) {
-    const suffix = state.steps > 0 ? `  (${state.steps}단계 축약)` : '';
-    statusEl.textContent = exprToString(state.ast) + suffix;
-  } else {
-    statusEl.textContent = '';
+/**
+ * 상태 영역에 현재 식을 트리맵 색으로 색칠해 표시한다.
+ * 접미사(축약 단계 수 등)는 기본 색으로 이어 붙인다.
+ */
+function renderStatus(suffix = '') {
+  statusEl.textContent = '';
+  if (!state.ast) {
+    return;
   }
+  for (const seg of exprToSegments(state.ast)) {
+    const span = document.createElement('span');
+    span.textContent = seg.text;
+    if (seg.color) {
+      span.style.color = seg.color;
+    }
+    statusEl.appendChild(span);
+  }
+  if (suffix) {
+    const tail = document.createElement('span');
+    tail.textContent = suffix;
+    statusEl.appendChild(tail);
+  }
+}
+
+function render() {
+  renderStatus(state.steps > 0 ? `  (${state.steps}단계 축약)` : '');
 }
 
 function updateButtons() {
@@ -133,7 +152,8 @@ stepBtn.addEventListener('click', () => {
   if (result.reduced) {
     commitStep(result);
   } else {
-    statusEl.textContent = `${exprToString(state.ast)}  (정규형 — 더 이상 축약 불가)`;
+    statusEl.textContent = '';
+    renderStatus('  (정규형 — 더 이상 축약 불가)');
   }
 });
 
@@ -157,14 +177,14 @@ autoBtn.addEventListener('click', () => {
     if (autoSteps >= AUTO_MAX_STEPS) {
       state.autoRunning = false;
       updateButtons();
-      statusEl.textContent = `${exprToString(state.ast)}  (자동 축약 최대 스텝 도달)`;
+      renderStatus('  (자동 축약 최대 스텝 도달)');
       return;
     }
     const result = reduceStep(state.ast);
     if (!result.reduced) {
       state.autoRunning = false;
       updateButtons();
-      statusEl.textContent = `${exprToString(state.ast)}  (정규형 — 더 이상 축약 불가)`;
+      renderStatus('  (정규형 — 더 이상 축약 불가)');
       return;
     }
     autoSteps++;

@@ -2,7 +2,15 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parse } from '../js/parser.js';
 import { Var } from '../js/ast.js';
-import { layoutTreemap, weightOf, colorForKey, findCellByNode, collectVarCellsByColorKey } from '../js/treemap.js';
+import { exprToString } from '../js/ast.js';
+import {
+  layoutTreemap,
+  weightOf,
+  colorForKey,
+  findCellByNode,
+  collectVarCellsByColorKey,
+  exprToSegments,
+} from '../js/treemap.js';
 
 const FULL = { x: 0, y: 0, w: 100, h: 100 };
 
@@ -81,6 +89,47 @@ test('인접한 키들도 충분히 다른 색(hue 간격 20도 이상)', () => 
       `${k1} vs ${k2}: hue 거리 ${dist}는 너무 가까움 (시각적으로 동일 색)`
     );
   }
+});
+
+// ---------- exprToSegments (상태 표시줄 색칠) ----------
+
+test('exprToSegments: 이어 붙이면 exprToString과 동일한 문자열', () => {
+  const sources = [
+    'x',
+    'x y z',
+    'x (y z)',
+    '(λx. x) y',
+    'λx. x y',
+    'λx y. x',
+    'x (λy. y)',
+    '(λx. λy. x) a b',
+  ];
+  for (const source of sources) {
+    const joined = exprToSegments(parse(source)).map(s => s.text).join('');
+    assert.equal(joined, exprToString(parse(source)), source);
+  }
+});
+
+test('exprToSegments: 파라미터와 묶인 변수는 같은 바인딩 색, 자유 변수는 이름 색', () => {
+  const ast = parse('λx. x y');
+  const segments = exprToSegments(ast);
+  assert.deepEqual(segments.map(s => s.text), ['λ', 'x', '. ', 'x', ' ', 'y']);
+  assert.equal(segments[0].color, undefined, 'λ 기호는 무색');
+  assert.equal(segments[1].color, colorForKey(ast.bindingId), '파라미터 = 바인딩 색');
+  assert.equal(segments[3].color, segments[1].color, '묶인 x는 파라미터와 같은 색');
+  assert.equal(segments[5].color, colorForKey('free:y'), '자유 y는 free:y 색');
+});
+
+test('exprToSegments: 섀도 파라미터는 서로 다른 색', () => {
+  const ast = parse('λx. x (λx. x)');
+  // x 세그먼트: 바깥 param, 바깥 발생, 안쪽 param, 안쪽 발생
+  const xColors = exprToSegments(ast)
+    .filter(s => s.text === 'x')
+    .map(s => s.color);
+  assert.equal(xColors.length, 4);
+  assert.equal(xColors[0], xColors[1]);
+  assert.equal(xColors[2], xColors[3]);
+  assert.notEqual(xColors[0], xColors[2]);
 });
 
 // ---------- 기본 레이아웃 ----------

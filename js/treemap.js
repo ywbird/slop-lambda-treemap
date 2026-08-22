@@ -135,6 +135,60 @@ function layout(node, rect, depth, env) {
 }
 
 /**
+ * 식을 트리맵과 같은 색 규칙으로 색칠한 텍스트 세그먼트로 변환한다.
+ * - 묶인 변수 / λ 파라미터: 해당 바인딩의 색 (트리맵 셀·테두리와 동일)
+ * - 자유 변수: 'free:이름' 키의 색
+ * - 괄호/공백/λ 기호 등 구분자: 무색 (color 없음)
+ * 세그먼트를 이어 붙이면 exprToString과 같은 문자열이 된다.
+ * @param {object} node
+ * @param {Map<string, number>} env
+ * @returns {{text: string, color?: string}[]}
+ */
+export function exprToSegments(node, env = new Map()) {
+  switch (node.type) {
+    case 'var': {
+      const bindingId = env.get(node.name);
+      const key = bindingId !== undefined ? bindingId : FREE_PREFIX + node.name;
+      return [{ text: node.name, color: colorForKey(key) }];
+    }
+    case 'lambda': {
+      const segments = [{ text: 'λ' }];
+      const scope = new Map(env);
+      let current = node;
+      while (true) {
+        scope.set(current.param, current.bindingId);
+        segments.push({ text: current.param, color: colorForKey(current.bindingId) });
+        if (current.body.type === 'lambda') {
+          segments.push({ text: ' ' });
+          current = current.body;
+        } else {
+          break;
+        }
+      }
+      segments.push({ text: '. ' });
+      segments.push(...exprToSegments(current.body, scope));
+      return segments;
+    }
+    case 'app': {
+      const segments = [];
+      if (node.func.type === 'lambda') {
+        segments.push({ text: '(' }, ...exprToSegments(node.func, env), { text: ') ' });
+      } else {
+        segments.push(...exprToSegments(node.func, env), { text: ' ' });
+      }
+      if (node.arg.type === 'var') {
+        segments.push(...exprToSegments(node.arg, env));
+      } else {
+        segments.push({ text: '(' }, ...exprToSegments(node.arg, env), { text: ')' });
+      }
+      return segments;
+    }
+    default:
+      throw new Error(`알 수 없는 노드 타입: ${node.type}`);
+  }
+}
+
+/**
  * AST를 트리맵 레이아웃 트리로 변환한다.
  * @param {object} root AST 루트
  * @param {{x: number, y: number, w: number, h: number}} rect 전체 영역
