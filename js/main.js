@@ -11,6 +11,7 @@ const AUTO_MAX_STEPS = 200;
 const AUTO_STEP_DELAY_MS = 180;
 
 const input = document.getElementById('expr-input');
+const presetsEl = document.getElementById('presets');
 const parseBtn = document.getElementById('parse-btn');
 const stepBtn = document.getElementById('step-btn');
 const autoBtn = document.getElementById('auto-btn');
@@ -87,7 +88,7 @@ function stopEverything() {
   state.autoRunning = false;
 }
 
-parseBtn.addEventListener('click', () => {
+function parseCurrent() {
   stopEverything();
   errorEl.textContent = '';
   try {
@@ -104,6 +105,23 @@ parseBtn.addEventListener('click', () => {
     refreshTreemap();
     updateButtons();
   }
+}
+
+parseBtn.addEventListener('click', parseCurrent);
+
+input.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    parseCurrent();
+  }
+});
+
+presetsEl.addEventListener('click', (e) => {
+  const presetBtn = e.target.closest('.preset');
+  if (!presetBtn) {
+    return;
+  }
+  input.value = presetBtn.dataset.expr;
+  parseCurrent();
 });
 
 stepBtn.addEventListener('click', () => {

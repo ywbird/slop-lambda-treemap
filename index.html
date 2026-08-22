@@ -14,7 +14,14 @@
 
   <main>
     <section id="controls">
-      <input id="expr-input" type="text" placeholder="예: (λx. λy. x) a b" aria-label="람다 대수 식 입력">
+      <input id="expr-input" type="text" placeholder="예: (λx. λy. x) a b" aria-label="람다 대수 식 입력" spellcheck="false" autocapitalize="off">
+      <div id="presets" class="presets" aria-label="예시 식">
+        <button type="button" class="preset" data-expr="(λx. λy. x) a b">K 조합자</button>
+        <button type="button" class="preset" data-expr="(λx. x x) (λy. y)">자기 적용</button>
+        <button type="button" class="preset" data-expr="(λx. x x x) (a b)">다중 대입</button>
+        <button type="button" class="preset" data-expr="(λn. λf. λx. f (n f x)) (λf. λx. f x) a b">후속 숫자</button>
+        <button type="button" class="preset" data-expr="(λx. x x) (λx. x x)">오메가</button>
+      </div>
       <div class="buttons">
         <button id="parse-btn" type="button">파싱</button>
         <button id="step-btn" type="button" disabled>한 스텝 축약</button>

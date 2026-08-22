@@ -65,6 +65,18 @@ main {
   flex-wrap: wrap;
 }
 
+.presets {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.preset {
+  font-size: 0.8rem;
+  padding: 3px 10px;
+  color: var(--muted);
+}
+
 button {
   font: inherit;
   padding: 6px 14px;
