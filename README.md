@@ -1,5 +1,7 @@
 # Lambda Treemap
 
+블로그 글: <https://meliplug.info/articles/math/lambda-treemap/>
+
 람다 대수 식을 파싱해 2D binary treemap으로 시각화하고, 베타 축약이
 일어나는 과정을 애니메이션으로 보여주는 웹 앱입니다.
 외부 라이브러리 없이 HTML + Vanilla JS(ES modules) + CSS만으로 작성됐습니다.
