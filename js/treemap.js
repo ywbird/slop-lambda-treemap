@@ -59,24 +59,28 @@ function insetRect(rect, pad) {
   };
 }
 
-// vertically=true면 좌우 분할(func=왼쪽), 아니면 상하 분할(func=위쪽)
-function splitRect(rect, ratio, vertically) {
-  if (vertically) {
-    const funcW = rect.w * ratio;
-    return [
-      { x: rect.x, y: rect.y, w: funcW, h: rect.h },
-      { x: rect.x + funcW, y: rect.y, w: rect.w - funcW, h: rect.h },
-    ];
-  }
-  const funcH = rect.h * ratio;
-  return [
-    { x: rect.x, y: rect.y, w: rect.w, h: funcH },
-    { x: rect.x, y: rect.y + funcH, w: rect.w, h: rect.h - funcH },
-  ];
+/** 셀 간 시각 간격 — λ 테두리와 body 사이 패딩, app 자식 사이 간격이 같은 값 */
+function gapFor(rect) {
+  return Math.max(1, Math.min(8, Math.min(rect.w, rect.h) * 0.05));
 }
 
-function lambdaPad(rect) {
-  return Math.max(1, Math.min(8, Math.min(rect.w, rect.h) * 0.05));
+// vertically=true면 좌우 분할(func=왼쪽), 아니면 상하 분할(func=위쪽).
+// 자식 사이에 gap만큼 빈 간격을 둔다(λ 패딩과 동일한 공식).
+function splitRect(rect, ratio, vertically, gap) {
+  if (vertically) {
+    const usable = Math.max(0, rect.w - gap);
+    const funcW = usable * ratio;
+    return [
+      { x: rect.x, y: rect.y, w: funcW, h: rect.h },
+      { x: rect.x + funcW + gap, y: rect.y, w: usable - funcW, h: rect.h },
+    ];
+  }
+  const usable = Math.max(0, rect.h - gap);
+  const funcH = usable * ratio;
+  return [
+    { x: rect.x, y: rect.y, w: rect.w, h: funcH },
+    { x: rect.x, y: rect.y + funcH + gap, w: rect.w, h: usable - funcH },
+  ];
 }
 
 function layout(node, rect, depth, env) {
@@ -95,7 +99,7 @@ function layout(node, rect, depth, env) {
         rect,
         bindingId: node.bindingId,
         color: colorForKey(node.bindingId),
-        body: layout(node.body, insetRect(rect, lambdaPad(rect)), depth + 1, childEnv),
+        body: layout(node.body, insetRect(rect, gapFor(rect)), depth + 1, childEnv),
       };
     }
     case 'app': {
@@ -104,7 +108,8 @@ function layout(node, rect, depth, env) {
       const [funcRect, argRect] = splitRect(
         rect,
         funcWeight / (funcWeight + argWeight),
-        depth % 2 === 0
+        depth % 2 === 0,
+        gapFor(rect)
       );
       return {
         kind: 'app',

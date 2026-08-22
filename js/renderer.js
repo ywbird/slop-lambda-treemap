@@ -120,11 +120,11 @@ export class TreemapRenderer {
 
   /** 셀이 충분히 크면 가운데에 텍스트를 그린다(가독성용 외곽선 포함). */
   _drawLabel(text, rect) {
-    if (rect.w < 28 || rect.h < 14) {
+    if (rect.w < 32 || rect.h < 16) {
       return;
     }
     const { ctx } = this;
-    ctx.font = '12px ui-monospace, monospace';
+    ctx.font = '14px ui-monospace, monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     const x = rect.x + rect.w / 2;

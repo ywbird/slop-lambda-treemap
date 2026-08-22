@@ -104,29 +104,43 @@ test('추상화는 body를 패딩 안쪽에 배치', () => {
   assert.equal(cell.body.colorKey, cell.bindingId);
 });
 
-test('깊이 0의 적용은 좌우 분할 (func=왼쪽, arg=오른쪽)', () => {
+test('깊이 0의 적용은 좌우 분할 (func=왼쪽, arg=오른쪽), 자식 사이 간격 있음', () => {
   const cell = layoutTreemap(parse('x y'), FULL);
   assert.equal(cell.kind, 'app');
-  assertRect(cell.func.rect, { x: 0, y: 0, w: 50, h: 100 }, 'func 왼쪽 절반');
-  assertRect(cell.arg.rect, { x: 50, y: 0, w: 50, h: 100 }, 'arg 오른쪽 절반');
+  // 간격 = gapFor(100x100) = 5
+  assertRect(cell.func.rect, { x: 0, y: 0, w: 47.5, h: 100 }, 'func 왼쪽');
+  assertRect(cell.arg.rect, { x: 52.5, y: 0, w: 47.5, h: 100 }, 'arg 오른쪽');
+});
+
+test('같은 크기 영역에서 app 자식 간 간격은 λ body 패딩과 동일', () => {
+  const appCell = layoutTreemap(parse('x y'), FULL);
+  const lambdaCell = layoutTreemap(parse('λq. q'), FULL);
+  const appGap = appCell.arg.rect.x - (appCell.func.rect.x + appCell.func.rect.w);
+  const lambdaPad = lambdaCell.body.rect.x - lambdaCell.rect.x;
+  assert.ok(appGap > 0, '간격은 양수');
+  assert.ok(approx(appGap, lambdaPad), `app 간격 ${appGap} ≠ λ 패딩 ${lambdaPad}`);
 });
 
 test('깊이 1의 적용은 상하 분할', () => {
   const cell = layoutTreemap(parse('x y z'), FULL);
   assert.equal(cell.kind, 'app');
-  // func(x y)는 가중치 2/3 → 좌측 2/3
-  assert.ok(approx(cell.func.rect.w, 100 * 2 / 3), 'func 2/3 폭');
-  assert.ok(approx(cell.arg.rect.w, 100 / 3), 'arg 1/3 폭');
-  // 내부 app(x y)는 깊이 1 → 상하 분할
+  const rootGap = 5;
+  const funcW = (100 - rootGap) * 2 / 3;
+  assert.ok(approx(cell.func.rect.w, funcW), 'func는 (100-gap)의 2/3');
+  assert.ok(approx(cell.arg.rect.x, funcW + rootGap), 'arg는 func 옆에 간격을 두고');
+  assert.ok(approx(cell.arg.rect.w, 100 - rootGap - funcW), 'arg는 1/3');
+  // 내부 app(x y)는 깊이 1 → 상하 분할, 간격은 내부 rect 크기 기반
   const inner = cell.func;
-  assert.ok(approx(inner.func.rect.h, cell.func.rect.h / 2), 'x 위쪽 절반');
-  assert.ok(approx(inner.arg.rect.y, cell.func.rect.h / 2), 'y 아래쪽 절반');
+  const innerGap = Math.min(8, Math.min(inner.rect.w, inner.rect.h) * 0.05);
+  assert.ok(approx(inner.func.rect.h, (100 - innerGap) / 2), 'x 위쪽 절반');
+  assert.ok(approx(inner.arg.rect.y, (100 - innerGap) / 2 + innerGap), 'y 아래쪽(간격 후)');
 });
 
 test('면적은 가중치 비율로 분배', () => {
   const cell = layoutTreemap(parse('x (y z)'), FULL);
-  assert.ok(approx(cell.func.rect.w, 100 / 3), 'x(가중치1)은 1/3');
-  assert.ok(approx(cell.arg.rect.w, 200 / 3), 'y z(가중치2)는 2/3');
+  assert.ok(approx(cell.func.rect.w, 95 / 3), 'x(가중치1)은 (100-gap)의 1/3');
+  assert.ok(approx(cell.arg.rect.x, 95 / 3 + 5), 'y z는 간격 뒤');
+  assert.ok(approx(cell.arg.rect.w, 95 * 2 / 3), 'y z(가중치2)는 2/3');
 });
 
 // ---------- 색상/바인딩 ----------
@@ -191,7 +205,7 @@ test('findCellByNode: AST 노드 참조로 셀을 찾는다', () => {
   assert.strictEqual(findCellByNode(cell, ast), cell);
   const funcCell = findCellByNode(cell, ast.func);
   assert.strictEqual(funcCell.node, ast.func);
-  assert.ok(rectEq(funcCell.rect, { x: 0, y: 0, w: 200 / 3, h: 100 }));
+  assert.ok(rectEq(funcCell.rect, { x: 0, y: 0, w: 95 * 2 / 3, h: 100 }));
   assert.equal(findCellByNode(cell, Var('q')), null);
 });
 
