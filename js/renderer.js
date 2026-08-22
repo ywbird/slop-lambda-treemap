@@ -1,7 +1,10 @@
 // canvas 렌더러: treemap 레이아웃 트리를 canvas에 그린다.
 // - var: 바인딩 색으로 채운 사각형 (충분히 크면 변수명 표시)
-// - lambda: 테두리만 (테두리 색 = 바인딩 색 → 안의 변수 셀과 색이 대응)
+// - lambda: 테두리만 (테두리 색 = 바인딩 색 → 안의 변수 셀과 색이 대응),
+//   굵기는 간격(cellGap)과 동일
 // - app: 자체적으로 그리는 것 없음, func/arg가 영역을 나눠 채움
+
+import { cellGap } from './treemap.js';
 
 export class TreemapRenderer {
   /** @param {HTMLCanvasElement} canvas */
@@ -68,10 +71,10 @@ export class TreemapRenderer {
     }
   }
 
-  /** λ 셀의 테두리를 그린다(선이 rect 안쪽에 남도록). 두께는 상수. */
+  /** λ 셀의 테두리를 그린다. 굵기는 셀 간 간격과 동일한 공식(cellGap). */
   _drawLambdaBorder(cell, rect) {
     const { ctx } = this;
-    const lineWidth = 2;
+    const lineWidth = cellGap(rect);
     const half = lineWidth / 2;
     ctx.strokeStyle = cell.color;
     ctx.lineWidth = lineWidth;

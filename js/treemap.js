@@ -62,10 +62,10 @@ function insetRect(rect, pad) {
   };
 }
 
-// 셀 간 간격(형제 노드 사이)과 λ 테두리-본문 패딩 — 모두 같은 공식.
-// 같은 크기의 영역에서는 두 간격이 정확히 같다.
+// 셀 간 간격(형제 노드 사이), λ 테두리-본문 패딩, λ 테두리 굵기 — 모두 같은 공식.
+// 같은 크기의 영역에서는 모두 정확히 같은 값이다.
 // (크기 비례 5%, 상한 8, 하한 1)
-function cellGap(rect) {
+export function cellGap(rect) {
   return Math.max(1, Math.min(8, Math.min(rect.w, rect.h) * 0.05));
 }
 
