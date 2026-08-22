@@ -3,8 +3,9 @@
 // 추상화는 "테두리를 가진 body"가 통째로 하나의 노드다:
 // - 변수(var): 자신을 묶은 λ의 bindingId(자유 변수면 이름) 기반 고유 색 셀
 // - 추상화(lambda): 테두리만 그리는 하나의 노드 셀. body는 테두리 안쪽에
-//   배치되며, 교차 분할에서 λ가 한 단계로 반영된다(부모가 좌우면 body 내부
-//   분할은 상하 — body를 깊이+1로 배치).
+//   배치된다. 추상화는 가로/세로 교차 분할에서 제외된다 — 분할 방향 홀짝은
+//   app 분할 수만 센다. 그래서 λ 체인을 얼마나 거치든 첫 app 분할은
+//   감싸는 app 분할과 항상 교차한다.
 // - 적용(app): func(대상 식)과 arg(대입 식)을 깊이 홀짝에 따라 좌우/상하 분할.
 // 면적은 노드 수 비율로 분배하고, 형제 셀 간격은 모든 깊이·모든 인접에서
 // 균일한 상수(CELL_GAP)를 쓴다.
@@ -98,17 +99,15 @@ function layout(node, rect, depth, env) {
     case 'lambda': {
       const childEnv = new Map(env);
       childEnv.set(node.param, node.bindingId);
-      // 추상화는 "테두리를 가진 body"가 하나의 노드: 이 셀 자체가 원자적이다.
-      // body는 테두리 굵기(cellGap) + 테두리-본문 여백(cellGap)만큼 안쪽에,
-      // 깊이 +1로 배치해 교차 분할(가로/세로 번갈아)에 추상화가 한 단계로
-      // 반영되게 한다. 즉 테두리와 body 사이 여백이 노드 간 간격과 같다.
+      // 추상화는 교차 분할에서 제외: body를 같은 깊이로 배치해 분할 방향이
+      // app 분할 수에만 의존하게 한다 (λ 체인 길이와 무관).
       return {
         kind: 'lambda',
         node,
         rect,
         bindingId: node.bindingId,
         color: colorForKey(node.bindingId),
-        body: layout(node.body, insetRect(rect, cellGap(rect) * 2), depth + 1, childEnv),
+        body: layout(node.body, insetRect(rect, cellGap(rect) * 2), depth, childEnv),
       };
     }
     case 'app': {

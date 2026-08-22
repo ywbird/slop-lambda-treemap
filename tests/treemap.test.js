@@ -154,18 +154,30 @@ test('추상화는 "테두리를 가진 body"가 하나의 노드 — 테두리�
   assert.equal(cell.body.colorKey, cell.bindingId);
 });
 
-test('추상화는 교차 분할에 한 단계로 반영: λ를 거치면 방향이 한 번 뒤집힌다', () => {
-  // (λx. x y) z — 루트 app(깊이0) 좌우 → λ(깊이1, 분할 없음) → body app(깊이2) 좌우.
-  // λ가 한 단계를 차지하므로 body 분할은 부모와 같은 방향이 된다(짝수 레벨 차).
+test('추상화는 교차 분할에서 제외 — 방향은 app 분할 수만으로 결정', () => {
+  // (λx. x y) z: 루트 app(깊이0) 좌우 → λ body의 app도 깊이1 → 상하
   const cell = layoutTreemap(parse('(λx. x y) z'), FULL);
   assert.equal(cell.kind, 'app');
   const bodyApp = cell.func.body;
   assert.equal(bodyApp.kind, 'app');
-  assert.ok(approx(bodyApp.func.rect.y, bodyApp.arg.rect.y), '같은 y 범위 공유(좌우 분할)');
-  assert.ok(bodyApp.arg.rect.x > bodyApp.func.rect.x, 'func 왼쪽 / arg 오른쪽');
-  // λ 없이 같은 깊이라면 상하로 분할될 것: (x y) z의 내부 app은 상하
+  assert.ok(approx(bodyApp.func.rect.x, bodyApp.arg.rect.x), '같은 x 범위 공유(상하 분할)');
+  assert.ok(bodyApp.arg.rect.y > bodyApp.func.rect.y, 'func 위 / arg 아래');
+
+  // λ가 없어도 같은 깊이의 app은 같은 방향: (x y) z의 내부 app도 상하
   const noLambda = layoutTreemap(parse('(x y) z'), FULL);
   assert.ok(noLambda.func.arg.rect.y > noLambda.func.func.rect.y, 'app 연쇄는 상하');
+});
+
+test('λ 체인 길이가 달라도 첫 app 분할 방향은 동일 (회귀)', () => {
+  // 사용자 보고 사례: 앞은 λ 3개, 뒤는 λ 2개 — 둘 다 첫 app 분할은 같아야 함
+  const ast = parse('(λn. λf. λx. f (n f x)) (λp. λq. p q)');
+  const cell = layoutTreemap(ast, FULL);
+  const leftApp = cell.func.body.body.body; // f (n f x)
+  const rightApp = cell.arg.body.body; // p q
+  const isVertical = (c) =>
+    approx(c.func.rect.x, c.arg.rect.x) && c.arg.rect.y > c.func.rect.y;
+  assert.ok(isVertical(leftApp), 'f / (n f x) 상하');
+  assert.ok(isVertical(rightApp), 'p / q 상하');
 });
 
 test('깊이 0의 적용은 좌우 분할 (func=왼쪽, arg=오른쪽), 자식 사이 간격 있음', () => {
