@@ -34,19 +34,20 @@
 
 ## 2. 파서 (Parser) → AST
 
-- [ ] 재귀 하강 파서, 문법:
+- [x] 재귀 하강 파서, 문법:
   ```
   expr       := abstraction | application
   abstraction := (λ|\) IDENT+ . expr      // 여러 파라미터는 커리 지원
   application := atom+                     // 좌결합 (left-associative)
   atom       := IDENT | '(' expr ')'
   ```
-- [ ] AST 노드 타입
+- [x] AST 노드 타입
   - `{ type: 'var', name }`
   - `{ type: 'lambda', param, body }` (abstraction)
   - `{ type: 'app', func, arg }` (application)
-- [ ] 파싱 실패 시 위치 정보와 함께 에러 표시
-- [ ] 파싱된 AST를 텍스트/트리 형태로 콘솔 또는 화면에 출력해 디버깅 가능하게
+- [x] 파싱 실패 시 위치 정보와 함께 에러 표시
+- [x] 파싱된 AST를 텍스트/트리 형태로 콘솔 또는 화면에 출력해 디버깅 가능하게
+  (`ast.js`의 `dumpAst` + 파싱 버튼 → 콘솔 출력)
 
 ---
 
