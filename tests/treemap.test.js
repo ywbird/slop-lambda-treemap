@@ -139,11 +139,20 @@ test('깊이 1의 적용은 상하 분할', () => {
   assert.ok(approx(cell.func.rect.w, funcW), 'func는 (100-gap)의 2/3');
   assert.ok(approx(cell.arg.rect.x, funcW + rootGap), 'arg는 func 옆에 간격을 두고');
   assert.ok(approx(cell.arg.rect.w, 100 - rootGap - funcW), 'arg는 1/3');
-  // 내부 app(x y)는 깊이 1 → 상하 분할, 간격은 내부 rect 크기 기반
+  // 내부 app(x y)는 깊이 1 → 상하 분할, 간격도 동일 상수
   const inner = cell.func;
-  const innerGap = Math.min(8, Math.min(inner.rect.w, inner.rect.h) * 0.05);
+  const innerGap = 5;
   assert.ok(approx(inner.func.rect.h, (100 - innerGap) / 2), 'x 위쪽 절반');
   assert.ok(approx(inner.arg.rect.y, (100 - innerGap) / 2 + innerGap), 'y 아래쪽(간격 후)');
+});
+
+test('깊이가 달라도 셀 간격은 균일(상수 간격)', () => {
+  const cell = layoutTreemap(parse('x y z'), FULL);
+  // a|b (깊이 1 분할) 와 (ab)|c (깊이 0 분할)의 간격이 같아야 함
+  const innerGap = cell.func.arg.rect.y - (cell.func.func.rect.y + cell.func.func.rect.h);
+  const rootGap = cell.arg.rect.x - (cell.func.rect.x + cell.func.rect.w);
+  assert.ok(approx(innerGap, rootGap), `깊이1 ${innerGap} ≠ 깊이0 ${rootGap}`);
+  assert.ok(approx(rootGap, 5), '상수 간격 5');
 });
 
 test('면적은 가중치 비율로 분배', () => {

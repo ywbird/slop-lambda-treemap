@@ -51,9 +51,13 @@ export function weightOf(node) {
   }
 }
 
-/** 셀 간 시각 간격 — 모든 분할(app, λ노드|body)이 같은 공식 */
+// 셀 간 시각 간격/테두리 두께 — 깊이나 셀 크기와 무관하게 상수로 균일하게.
+// (크기 비례 간격은 루트는 넓고 깊은 곳은 1px로 좁아져 불균일해 보임)
+const CELL_GAP = 5;
+
 function gapFor(rect) {
-  return Math.max(1, Math.min(8, Math.min(rect.w, rect.h) * 0.05));
+  // 아주 작은 셀에서 자식이 음수가 되지 않도록 크기 상한만 둔다
+  return Math.min(CELL_GAP, Math.min(rect.w, rect.h) / 3);
 }
 
 // vertically=true면 좌우 분할(func=왼쪽), 아니면 상하 분할(func=위쪽).

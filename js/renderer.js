@@ -68,10 +68,10 @@ export class TreemapRenderer {
     }
   }
 
-  /** λ 셀의 테두리를 그린다(선이 rect 안쪽에 남도록). */
+  /** λ 셀의 테두리를 그린다(선이 rect 안쪽에 남도록). 두께는 상수. */
   _drawLambdaBorder(cell, rect) {
     const { ctx } = this;
-    const lineWidth = Math.max(1.5, Math.min(3, Math.min(rect.w, rect.h) * 0.05));
+    const lineWidth = 2;
     const half = lineWidth / 2;
     ctx.strokeStyle = cell.color;
     ctx.lineWidth = lineWidth;
