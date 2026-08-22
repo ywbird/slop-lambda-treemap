@@ -62,19 +62,27 @@ export function pathToNode(root, target) {
 
 /**
  * oldCell(축약 전 셀)과 newCell(축약 후 셀)을 짝지어 e 비율로 보간한 셀 트리.
- * 변수(var) 자리에 서브트리가 들어온 경우 인자의 이전 레이아웃(argCell)에서
- * 시작하는 복제 비행으로 처리한다.
+ * 대입이 일어난 자리(oldCell이 redex λ에 묶인 파라미터 변수)에서는 인자의
+ * 이전 레이아웃(argCell)에서 시작하는 복제 비행으로 처리한다.
  * @param {object} oldCell
  * @param {object} newCell
  * @param {number} e
  * @param {object} argCell redex 인자의 축약 전 레이아웃 (복제 시작점)
+ * @param {number} [paramKey] redex λ의 bindingId (대입 지점 감지용)
  */
-export function morphTree(oldCell, newCell, e, argCell) {
+export function morphTree(oldCell, newCell, e, argCell, paramKey) {
+  // 인자가 변수여도(var→var) 대입 지점은 복제 비행이어야 하므로
+  // 종류가 아니라 색 키(바인딩 ID)로 대입 지점을 감지한다.
+  if (
+    oldCell &&
+    oldCell.kind === 'var' &&
+    argCell &&
+    paramKey !== undefined &&
+    oldCell.colorKey === paramKey
+  ) {
+    return morphTree(argCell, newCell, e, argCell);
+  }
   if (!oldCell || oldCell.kind !== newCell.kind) {
-    if (oldCell && oldCell.kind === 'var' && argCell) {
-      // 대입이 일어난 자리: 인자 전체가 이 위치로 복제된다
-      return morphTree(argCell, newCell, e, argCell);
-    }
     return newCell; // 대응을 못 찾으면 새 셀을 그대로 (안전 폴백)
   }
   const rect = lerpRect(oldCell.rect, newCell.rect, e);
@@ -85,14 +93,14 @@ export function morphTree(oldCell, newCell, e, argCell) {
       return {
         ...newCell,
         rect,
-        body: morphTree(oldCell.body, newCell.body, e, argCell),
+        body: morphTree(oldCell.body, newCell.body, e, argCell, paramKey),
       };
     case 'app':
       return {
         ...newCell,
         rect,
-        func: morphTree(oldCell.func, newCell.func, e, argCell),
-        arg: morphTree(oldCell.arg, newCell.arg, e, argCell),
+        func: morphTree(oldCell.func, newCell.func, e, argCell, paramKey),
+        arg: morphTree(oldCell.arg, newCell.arg, e, argCell, paramKey),
       };
     default:
       return newCell;
@@ -107,11 +115,12 @@ export function morphTree(oldCell, newCell, e, argCell) {
  * @param {string[]} path pathToNode(oldAst, redex.app)
  * @param {number} e
  * @param {object} argCell redex 인자의 축약 전 레이아웃
+ * @param {number} paramKey redex λ의 bindingId
  */
-export function morphAlong(oldCell, newCell, path, e, argCell) {
+export function morphAlong(oldCell, newCell, path, e, argCell, paramKey) {
   if (path.length === 0) {
     // redex 위치: 소비되는 λ의 body가 새 내용과 짝을 이룬다
-    return morphTree(oldCell.func.body, newCell, e, argCell);
+    return morphTree(oldCell.func.body, newCell, e, argCell, paramKey);
   }
   const [head, ...rest] = path;
   const rect = lerpRect(oldCell.rect, newCell.rect, e);
@@ -120,8 +129,8 @@ export function morphAlong(oldCell, newCell, path, e, argCell) {
     if (newCell[key] !== undefined) {
       result[key] =
         head === key
-          ? morphAlong(oldCell[key], newCell[key], rest, e, argCell)
-          : morphTree(oldCell[key], newCell[key], e, argCell);
+          ? morphAlong(oldCell[key], newCell[key], rest, e, argCell, paramKey)
+          : morphTree(oldCell[key], newCell[key], e, argCell, paramKey);
     }
   }
   return result;
@@ -162,6 +171,9 @@ export class ReductionAnimator {
       return;
     }
 
+    // 대입 지점 감지용: redex λ의 색 키(바인딩 ID)
+    const paramKey = redex.app.func.bindingId;
+
     // 소비되는 λ: 테두리만 페이드아웃하는 고스트
     const ghost = { cell: appCell.func, alpha: 1 };
 
@@ -169,7 +181,7 @@ export class ReductionAnimator {
     const frame = (now) => {
       const t = Math.min(1, (now - start) / durationMs);
       const eased = easeInOutCubic(t);
-      const tree = morphAlong(oldLayout, newLayout, path, eased, appCell.arg);
+      const tree = morphAlong(oldLayout, newLayout, path, eased, appCell.arg, paramKey);
       this.renderer.renderMorph(tree, [{ cell: ghost.cell, alpha: 1 - eased }]);
       if (t < 1) {
         this._raf = requestAnimationFrame(frame);

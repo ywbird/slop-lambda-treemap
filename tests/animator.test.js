@@ -50,7 +50,7 @@ test('morphAlong: e=1이면 축약 후 레이아웃과 정확히 일치', () => 
   const r = reduceStep(ast);
   const oldL = layoutTreemap(ast, FULL);
   const newL = layoutTreemap(r.expr, FULL);
-  const tree = morphAlong(oldL, newL, pathToNode(ast, r.redex.app), 1, oldL.arg);
+  const tree = morphAlong(oldL, newL, pathToNode(ast, r.redex.app), 1, oldL.arg, ast.func.bindingId);
   assert.deepEqual(tree, newL);
 });
 
@@ -59,7 +59,7 @@ test('morphAlong: e=0이면 복제 시작점은 인자의 이전 위치', () => 
   const r = reduceStep(ast);
   const oldL = layoutTreemap(ast, FULL);
   const newL = layoutTreemap(r.expr, FULL);
-  const tree = morphAlong(oldL, newL, [], 0, oldL.arg);
+  const tree = morphAlong(oldL, newL, [], 0, oldL.arg, ast.func.bindingId);
   // 복제본 (y z)은 시작에서 인자였던 오른쪽 절반에 있고, 내부 구조도 동일
   assert.deepEqual(tree.rect, oldL.arg.rect);
   assert.deepEqual(tree.func.rect, oldL.arg.func.rect);
@@ -73,7 +73,7 @@ test('morphAlong: 중간값은 두 레이아웃의 선형 보간', () => {
   const r = reduceStep(ast);
   const oldL = layoutTreemap(ast, FULL);
   const newL = layoutTreemap(r.expr, FULL);
-  const tree = morphAlong(oldL, newL, [], 0.5, oldL.arg);
+  const tree = morphAlong(oldL, newL, [], 0.5, oldL.arg, ast.func.bindingId);
   const mid = lerpRect(oldL.arg.rect, newL.rect, 0.5);
   assert.deepEqual(tree.rect, mid);
 });
@@ -84,13 +84,37 @@ test('morphAlong: redex가 중첩된 경우 주변 식도 함께 보간', () => 
   const oldL = layoutTreemap(ast, FULL);
   const newL = layoutTreemap(r.expr, FULL);
   const path = pathToNode(ast, r.redex.app); // ['arg']
+  const paramKey = ast.arg.func.bindingId;
 
-  const end = morphAlong(oldL, newL, path, 1, oldL.arg.arg);
+  const end = morphAlong(oldL, newL, path, 1, oldL.arg.arg, paramKey);
   assert.deepEqual(end, newL);
 
-  const start = morphAlong(oldL, newL, path, 0, oldL.arg.arg);
+  const start = morphAlong(oldL, newL, path, 0, oldL.arg.arg, paramKey);
   // 경로 밖(왼쪽 z)은 이전 위치 유지에서 시작
   assert.deepEqual(start.func.rect, oldL.func.rect);
   // redex 자리의 복제본은 인자의 이전 위치에서 시작
   assert.deepEqual(start.arg.rect, oldL.arg.arg.rect);
+});
+
+// ---------- 복제 비행 감지 (회귀: 인자가 변수면 var→var 대입) ----------
+
+test('morphAlong: 인자가 변수(var→var)여도 인자 위치에서 복제 비행', () => {
+  const ast = parse('(λx. x) y');
+  const r = reduceStep(ast);
+  const oldL = layoutTreemap(ast, FULL);
+  const newL = layoutTreemap(r.expr, FULL);
+  const tree = morphAlong(oldL, newL, [], 0, oldL.arg, ast.func.bindingId);
+  // y 복제본은 오른쪽 절반(인자 위치)에서 출발 — 변수 x의 옛자리가 아님
+  assert.deepEqual(tree.rect, oldL.arg.rect);
+  assert.notDeepEqual(tree.rect, oldL.func.body.rect);
+});
+
+test('morphAlong: 변수 인자가 여러 곳에 대입되면 전부 인자 위치에서 출발', () => {
+  const ast = parse('(λx. x x) b');
+  const r = reduceStep(ast);
+  const oldL = layoutTreemap(ast, FULL);
+  const newL = layoutTreemap(r.expr, FULL);
+  const tree = morphAlong(oldL, newL, [], 0, oldL.arg, ast.func.bindingId);
+  assert.deepEqual(tree.func.rect, oldL.arg.rect);
+  assert.deepEqual(tree.arg.rect, oldL.arg.rect);
 });
