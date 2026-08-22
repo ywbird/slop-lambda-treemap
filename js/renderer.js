@@ -105,7 +105,6 @@ export class TreemapRenderer {
       }
       case 'lambda': {
         this._drawLambdaBorder(cell, r);
-        this._drawLabel(`λ${cell.node.param}`, r);
         this._drawCell(cell.body);
         break;
       }

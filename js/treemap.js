@@ -1,11 +1,12 @@
 // 트리맵 레이아웃: AST → 사각형(rect) 트리 + 바인딩 기반 고유 색.
 //
-// 모든 AST 노드(변수, 추상화, 적용)가 트리맵에서 하나의 노드로 대응된다:
+// 추상화는 "테두리를 가진 body"가 통째로 하나의 노드다:
 // - 변수(var): 자신을 묶은 λ의 bindingId(자유 변수면 이름) 기반 고유 색 셀
-// - 추상화(lambda): 그 자체가 테두리만 그리는 노드 셀. body는 내부가 아니라
-//   형제 영역에 배치된다 (λ노드 | body 분할)
+// - 추상화(lambda): 테두리만 그리는 하나의 노드 셀. body는 테두리 안쪽에
+//   배치되며, 교차 분할에서 λ가 한 단계로 반영된다(부모가 좌우면 body 내부
+//   분할은 상하 — body를 깊이+1로 배치).
 // - 적용(app): func(대상 식)과 arg(대입 식)을 깊이 홀짝에 따라 좌우/상하 분할.
-// 면적은 노드 수(가중치) 비율로 분배하고, 모든 분할에 같은 공식의 간격을 둔다.
+// 면적은 노드 수 비율로 분배하고, 간격은 상수(λ 테두리가 경계인 분할은 0).
 
 const FREE_PREFIX = 'free:';
 
@@ -33,8 +34,8 @@ export function colorForKey(key) {
 }
 
 /**
- * 서브트리의 노드 수(면적 가중치). 모든 노드가 1씩 기여한다:
- * 변수 리프 1, λ 노드 자체 1(+ body), app은 func+arg.
+ * 서브트리의 노드 수(면적 가중치). 변수 리프가 1씩 기여하고,
+ * 추상화는 래퍼일 뿐 추가 단위가 아니므로 body만 센다.
  * @param {object} node
  * @returns {number}
  */
@@ -43,7 +44,7 @@ export function weightOf(node) {
     case 'var':
       return 1;
     case 'lambda':
-      return 1 + weightOf(node.body);
+      return weightOf(node.body);
     case 'app':
       return weightOf(node.func) + weightOf(node.arg);
     default:
@@ -51,7 +52,16 @@ export function weightOf(node) {
   }
 }
 
-// 셀 간 시각 간격/테두리 두께 — 깊이나 셀 크기와 무관하게 상수로 균일하게.
+function insetRect(rect, pad) {
+  return {
+    x: rect.x + pad,
+    y: rect.y + pad,
+    w: Math.max(0, rect.w - pad * 2),
+    h: Math.max(0, rect.h - pad * 2),
+  };
+}
+
+// 셀 간 시각 간격/테두리-본문 간격 — 깊이나 셀 크기와 무관하게 상수로 균일하게.
 // (크기 비례 간격은 루트는 넓고 깊은 곳은 1px로 좁아져 불균일해 보임)
 const CELL_GAP = 5;
 
@@ -89,31 +99,29 @@ function layout(node, rect, depth, env) {
     case 'lambda': {
       const childEnv = new Map(env);
       childEnv.set(node.param, node.bindingId);
-      // 추상화는 그 자체가 하나의 노드: λ 노드 셀(테두리만)과 body를
-      // 형제로 분할한다. 방향(좌우/상하)은 app과 같은 깊이 교차 규칙.
-      const [nodeRect, bodyRect] = splitRect(
-        rect,
-        1 / (1 + weightOf(node.body)),
-        depth % 2 === 0,
-        gapFor(rect)
-      );
+      // 추상화는 "테두리를 가진 body"가 하나의 노드: 이 셀 자체가 원자적이다.
+      // body는 테두리 안쪽에, 깊이 +1로 배치해 교차 분할(가로/세로 번갈아)에
+      // 추상화가 한 단계로 반영되게 한다.
       return {
         kind: 'lambda',
         node,
-        rect: nodeRect,
+        rect,
         bindingId: node.bindingId,
         color: colorForKey(node.bindingId),
-        body: layout(node.body, bodyRect, depth + 1, childEnv),
+        body: layout(node.body, insetRect(rect, gapFor(rect)), depth + 1, childEnv),
       };
     }
     case 'app': {
       const funcWeight = weightOf(node.func);
       const argWeight = weightOf(node.arg);
+      // λ 래퍼는 테두리 자체가 경계 → λ가 포함된 분할은 간격을 두지 않는다.
+      // 그래야 "λ 안 변수 → 인접 변수" 거리가 테두리-본문 간격과 같아진다.
+      const hasLambda = node.func.type === 'lambda' || node.arg.type === 'lambda';
       const [funcRect, argRect] = splitRect(
         rect,
         funcWeight / (funcWeight + argWeight),
         depth % 2 === 0,
-        gapFor(rect)
+        hasLambda ? 0 : gapFor(rect)
       );
       return {
         kind: 'app',
