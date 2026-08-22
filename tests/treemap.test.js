@@ -93,13 +93,14 @@ test('변수 하나는 전체 영역을 차지는 var 셀', () => {
   assert.equal(cell.color, colorForKey('free:x'));
 });
 
-test('추상화는 "테두리를 가진 body"가 하나의 노드 — body가 노드를 채움', () => {
+test('추상화는 "테두리를 가진 body"가 하나의 노드 — body는 패딩 안쪽', () => {
   const cell = layoutTreemap(parse('λx. x'), FULL);
   assert.equal(cell.kind, 'lambda');
   assert.ok(cell.bindingId >= 1, 'bindingId 존재');
   assertRect(cell.rect, FULL, 'λ 노드 셀 = 전체 영역(원자적)');
   assert.equal(cell.body.kind, 'var');
-  assertRect(cell.body.rect, { x: 2, y: 2, w: 96, h: 96 }, 'body는 테두리 바로 안쪽');
+  // pad = min(8, 100*0.05) = 5 (처음 방식: 크기 비례)
+  assertRect(cell.body.rect, { x: 5, y: 5, w: 90, h: 90 }, 'body는 테두리에서 패딩만큼 안쪽');
   // 묶인 변수 x의 색 키는 λ의 bindingId
   assert.equal(cell.body.colorKey, cell.bindingId);
 });
@@ -136,9 +137,9 @@ test('모든 형제 간격은 균일 상수 — λ가 포함된 분할도 예외
   const lamGap = withLambda.arg.rect.x - (withLambda.func.rect.x + withLambda.func.rect.w);
   assert.ok(approx(lamGap, 10), `λ 인접 간격 ${lamGap}`);
 
-  // λ 내용 패딩은 테두리 두께(2)만 — 노드를 내용이 채움
+  // λ 내부 패딩은 노드 간 간격과 별개(처음 방식의 크기 비롯)
   const lamCell = layoutTreemap(parse('λq. q'), FULL);
-  assert.ok(approx(lamCell.body.rect.x - lamCell.rect.x, 2));
+  assert.ok(approx(lamCell.body.rect.x - lamCell.rect.x, 5), 'λ 패딩 = min(8, 5%)');
 });
 
 test('깊이 1의 적용은 상하 분할', () => {

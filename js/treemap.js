@@ -64,9 +64,12 @@ function insetRect(rect, pad) {
 
 // 모든 형제 셀(app의 func|arg, λ를 포함한 어떤 인접이든) 사이의 균일 간격.
 const CELL_GAP = 10;
-// λ 내용 패딩 = 테두리 두께만큼. 내용이 노드를 채우게 하되
-// 중첩 λ의 테두리가 정확히 겹쳐 보이지 않게 하는 최소값.
-const LAMBDA_PAD = 2;
+
+// λ 테두리와 body 사이 패딩 — 처음 방식 그대로 크기 비례(5%, 상한 8, 하한 1).
+// 노드 간 간격(CELL_GAP)과는 별개의, 노드 내부 여백이다.
+function lambdaPad(rect) {
+  return Math.max(1, Math.min(8, Math.min(rect.w, rect.h) * 0.05));
+}
 
 function gapFor(rect) {
   // 아주 작은 셀에서 자식이 음수가 되지 않도록 크기 상한만 둔다
@@ -103,7 +106,7 @@ function layout(node, rect, depth, env) {
       const childEnv = new Map(env);
       childEnv.set(node.param, node.bindingId);
       // 추상화는 "테두리를 가진 body"가 하나의 노드: 이 셀 자체가 원자적이다.
-      // body는 테두리 바로 안쪽(LAMBDA_PAD)에, 깊이 +1로 배치해 교차 분할
+      // body는 테두리에서 패딩만큼 안쪽에, 깊이 +1로 배치해 교차 분할
       // (가로/세로 번갈아)에 추상화가 한 단계로 반영되게 한다.
       return {
         kind: 'lambda',
@@ -111,7 +114,7 @@ function layout(node, rect, depth, env) {
         rect,
         bindingId: node.bindingId,
         color: colorForKey(node.bindingId),
-        body: layout(node.body, insetRect(rect, LAMBDA_PAD), depth + 1, childEnv),
+        body: layout(node.body, insetRect(rect, lambdaPad(rect)), depth + 1, childEnv),
       };
     }
     case 'app': {
