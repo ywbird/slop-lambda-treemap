@@ -105,11 +105,15 @@ function layout(node, rect, depth, env) {
     case 'app': {
       const funcWeight = weightOf(node.func);
       const argWeight = weightOf(node.arg);
+      // λ 테두리 자체가 곧 경계 역할을 하므로 λ가 포함된 분할은 간격을 두지
+      // 않는다. 그래야 "λ 안 변수 → 인접 변수" 거리가 테두리-본문 패딩과 같아진다.
+      // (간격을 두면 패딩 + 간격으로 정확히 2배가 됨)
+      const hasLambda = node.func.type === 'lambda' || node.arg.type === 'lambda';
       const [funcRect, argRect] = splitRect(
         rect,
         funcWeight / (funcWeight + argWeight),
         depth % 2 === 0,
-        gapFor(rect)
+        hasLambda ? 0 : gapFor(rect)
       );
       return {
         kind: 'app',

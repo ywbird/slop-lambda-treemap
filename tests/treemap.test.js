@@ -121,6 +121,18 @@ test('같은 크기 영역에서 app 자식 간 간격은 λ body 패딩과 동�
   assert.ok(approx(appGap, lambdaPad), `app 간격 ${appGap} ≠ λ 패딩 ${lambdaPad}`);
 });
 
+test('λ가 포함된 분할은 간격 0 — λ 안 변수와 인접 변수 거리 = 패딩', () => {
+  const cell = layoutTreemap(parse('(λy. a) b'), FULL);
+  assert.equal(cell.kind, 'app');
+  const [lam, bVar] = [cell.func, cell.arg];
+  // λ 셀과 b 셀 사이 간격 없음
+  assert.ok(approx(bVar.rect.x - (lam.rect.x + lam.rect.w), 0));
+  // λ 안쪽 변수 a에서 바깥 변수 b까지의 거리 == 테두리-본문 패딩
+  const pad = lam.body.rect.x - lam.rect.x;
+  const varGap = bVar.rect.x - (lam.body.rect.x + lam.body.rect.w);
+  assert.ok(approx(varGap, pad), `변수 간 ${varGap} ≠ 패딩 ${pad}`);
+});
+
 test('깊이 1의 적용은 상하 분할', () => {
   const cell = layoutTreemap(parse('x y z'), FULL);
   assert.equal(cell.kind, 'app');
