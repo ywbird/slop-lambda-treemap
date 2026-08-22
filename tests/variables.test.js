@@ -82,3 +82,38 @@ test('치환 결과가 그대로 파싱되어 축약됨 — $1 f x → f x', () 
   const r = reduceAll(parse(expanded));
   assert.equal(exprToString(r.expr), 'f x');
 });
+
+// ---------- 기본 변수 (교회 산술) ----------
+
+const reduceTo = (source) =>
+  exprToString(reduceAll(parse(expandVariables(source, [])), { maxSteps: 5000 }).expr);
+
+test('기본 변수: $add / $mul', () => {
+  assert.equal(reduceTo('$add $2 $3 f x'), 'f (f (f (f (f x))))'); // 2+3=5
+  assert.equal(reduceTo('$mul $2 $3 f x'), 'f (f (f (f (f (f x)))))'); // 2*3=6
+});
+
+test('기본 변수: $succ / $pred / $sub', () => {
+  assert.equal(reduceTo('$succ $2 f x'), 'f (f (f x))'); // 2+1=3
+  assert.equal(reduceTo('$pred $3 f x'), 'f (f x)'); // 3-1=2
+  assert.equal(reduceTo('$pred $0 f x'), 'x'); // pred 0 = 0
+  assert.equal(reduceTo('$sub $5 $2 f x'), 'f (f (f x))'); // 5-2=3
+  assert.equal(reduceTo('$sub $2 $5 f x'), 'x'); // clamp: 2-5=0
+});
+
+test('기본 변수: $div (정수 나눗셈)', () => {
+  assert.equal(reduceTo('$div $7 $2 f x'), 'f (f (f x))'); // 7÷2=3
+  assert.equal(reduceTo('$div $6 $2 f x'), 'f (f (f x))'); // 6÷2=3
+  assert.equal(reduceTo('$div $0 $3 f x'), 'x'); // 0÷3=0
+  assert.equal(reduceTo('$div $5 $5 f x'), 'f x'); // 5÷5=1
+});
+
+test('기본 변수는 그대로 참조 가능 ($true 등 보조 변수)', () => {
+  assert.equal(reduceTo('$iszero $0 t n'), 't');
+  assert.equal(reduceTo('$iszero $2 t n'), 'n');
+});
+
+test('사용자 정의가 기본 변수를 덮어씀', () => {
+  const vars = [{ name: 'add', value: 'λx. x' }];
+  assert.equal(expandVariables('$add y', vars), '(λx. x) y');
+});

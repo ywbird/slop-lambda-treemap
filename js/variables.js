@@ -5,6 +5,29 @@
 
 const MAX_CHURCH = 100;
 
+// 기본 변수: 사용자 목록에 없을 때 사용되는 내장 정의.
+// div는 CPS 방식 쌍(λk. k q c)으로 상태를 단계당 1회만 소비하는 카운트다운
+// 반복이라 normal order 축약에서 폭발하지 않음: c가 1이 되면(그룹 완료)
+// 몫 +1 후 c를 b로 리셋. b가 0이면 정의되지 않음(n과 같은 값이 나옴).
+export const DEFAULT_VARIABLES = [
+  { name: 'true', value: 'λt. λf. t' },
+  { name: 'false', value: 'λt. λf. f' },
+  { name: 'pair', value: 'λa. λb. λs. s a b' },
+  { name: 'fst', value: 'λp. p $true' },
+  { name: 'snd', value: 'λp. p $false' },
+  { name: 'iszero', value: 'λn. n (λx. $false) $true' },
+  { name: 'succ', value: 'λn. λf. λx. f (n f x)' },
+  { name: 'pred', value: 'λn. λf. λx. n (λg. λh. h (g f)) (λu. x) (λu. u)' },
+  { name: 'add', value: 'λm. λn. λf. λx. m f (n f x)' },
+  { name: 'mul', value: 'λm. λn. λf. m (n f)' },
+  { name: 'sub', value: 'λm. λn. n $pred m' },
+  {
+    name: 'div',
+    value:
+      'λa. λb. $fst (a (λg. g (λq. λc. $iszero ($pred c) ($pair ($succ q) b) ($pair q ($pred c)))) ($pair $0 b))',
+  },
+];
+
 /**
  * n에 해당하는 교회 숫자 식 문자열 (괄호로 묶임).
  * @param {number} n
@@ -35,7 +58,10 @@ export function expandVariables(source, variables, _expanding = new Set()) {
       }
       return churchNumeral(n);
     }
-    const entry = variables.find((v) => v.name === ident);
+    // 사용자 정의가 우선, 없으면 기본 변수 사용
+    const entry =
+      variables.find((v) => v.name === ident) ??
+      DEFAULT_VARIABLES.find((v) => v.name === ident);
     if (!entry) {
       throw new Error(`정의되지 않은 변수: ${whole}`);
     }

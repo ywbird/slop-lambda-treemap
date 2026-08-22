@@ -6,7 +6,7 @@ import { reduceStep } from './reducer.js';
 import { layoutTreemap, exprToSegments } from './treemap.js';
 import { TreemapRenderer } from './renderer.js';
 import { ReductionAnimator } from './animator.js';
-import { expandVariables } from './variables.js';
+import { expandVariables, DEFAULT_VARIABLES } from './variables.js';
 
 const AUTO_MAX_STEPS = 200;
 const AUTO_STEP_DELAY_MS = 180;
@@ -151,6 +151,16 @@ function addVariableRow(name = '', value = '') {
 }
 
 addVarBtn.addEventListener('click', () => addVariableRow());
+
+// 처음 로드 시 기본 산술 변수 6종을 목록에 채운다 (수정/삭제 가능).
+// 보조 변수($true, $pair 등)는 내장으로만 존재.
+const DEFAULT_UI_ORDER = ['add', 'sub', 'mul', 'div', 'succ', 'pred'];
+if (variablesList.children.length === 0) {
+  for (const name of DEFAULT_UI_ORDER) {
+    const entry = DEFAULT_VARIABLES.find((v) => v.name === name);
+    addVariableRow(entry.name, entry.value);
+  }
+}
 
 function parseCurrent() {
   stopEverything();
