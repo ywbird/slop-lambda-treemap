@@ -1,6 +1,6 @@
 # Lambda Treemap
 
-블로그 글: <https://meliplug.info/articles/math/lambda-treemap/>
+이 표기법의 원문: [Lambda Treemap — meliplug.info](https://meliplug.info/articles/math/lambda-treemap/)
 
 람다 대수 식을 파싱해 2D binary treemap으로 시각화하고, 베타 축약이
 일어나는 과정을 애니메이션으로 보여주는 웹 앱입니다.

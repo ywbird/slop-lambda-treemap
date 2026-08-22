@@ -33,6 +33,20 @@ h1 {
   font-size: 0.9rem;
 }
 
+.article-link {
+  margin: 4px 0 0;
+  font-size: 0.8rem;
+}
+
+.article-link a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.article-link a:hover {
+  text-decoration: underline;
+}
+
 main {
   display: flex;
   flex-direction: column;
