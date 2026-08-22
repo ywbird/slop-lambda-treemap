@@ -54,6 +54,35 @@ test('colorForKey: hsl 문자열 형식', () => {
   assert.match(colorForKey('free:x'), /^hsl\(\d+, 65%, 55%\)$/);
 });
 
+// ---------- 색 분산 (회귀: 인접 키가 시각적으로 같은 색이 되던 버그) ----------
+
+function hueOf(color) {
+  return Number(color.match(/^hsl\((\d+),/)[1]);
+}
+
+function hueDistance(a, b) {
+  const d = Math.abs(a - b) % 360;
+  return Math.min(d, 360 - d);
+}
+
+test('인접한 키들도 충분히 다른 색(hue 간격 20도 이상)', () => {
+  const pairs = [
+    ['1', '2'],
+    ['2', '3'],
+    ['3', '4'],
+    ['free:a', 'free:b'],
+    ['free:x', 'free:y'],
+    ['free:f', 'free:x'],
+  ];
+  for (const [k1, k2] of pairs) {
+    const dist = hueDistance(hueOf(colorForKey(k1)), hueOf(colorForKey(k2)));
+    assert.ok(
+      dist >= 20,
+      `${k1} vs ${k2}: hue 거리 ${dist}는 너무 가까움 (시각적으로 동일 색)`
+    );
+  }
+});
+
 // ---------- 기본 레이아웃 ----------
 
 test('변수 하나는 전체 영역을 차지는 var 셀', () => {

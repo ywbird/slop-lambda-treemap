@@ -9,11 +9,15 @@
 const FREE_PREFIX = 'free:';
 
 function hashString(str) {
-  let hash = 0;
+  let h = 0;
   for (const ch of str) {
-    hash = (hash * 31 + ch.codePointAt(0)) >>> 0;
+    h = (Math.imul(h, 31) + ch.codePointAt(0)) | 0;
   }
-  return hash;
+  // 비트 확산(finalizer): 약한 다항 해시에서 입력이 조금만 달라도
+  // hue가 1~2도 차이로 몰려 시각적으로 같은 색이 되는 문제를 방지한다.
+  h = Math.imul(h ^ (h >>> 16), 2246822507);
+  h = Math.imul(h ^ (h >>> 13), 3266489909);
+  return (h ^ (h >>> 16)) >>> 0;
 }
 
 /**
