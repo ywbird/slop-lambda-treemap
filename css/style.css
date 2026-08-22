@@ -71,6 +71,58 @@ main {
   flex-wrap: wrap;
 }
 
+#variables-details {
+  background: var(--panel);
+  border: 1px solid #333842;
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+
+#variables-details summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.85rem;
+  user-select: none;
+}
+
+#variables-details[open] summary {
+  margin-bottom: 8px;
+}
+
+.variable-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.variable-row input {
+  font: 0.85rem ui-monospace, monospace;
+  padding: 4px 8px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid #333842;
+  border-radius: 4px;
+}
+
+.variable-row .var-name {
+  width: 90px;
+}
+
+.variable-row .var-value {
+  flex: 1;
+}
+
+.variable-row .var-delete {
+  font-size: 0.75rem;
+  padding: 4px 8px;
+}
+
+.var-add {
+  font-size: 0.8rem;
+  padding: 3px 10px;
+  color: var(--muted);
+}
+
 .preset {
   font-size: 0.8rem;
   padding: 3px 10px;

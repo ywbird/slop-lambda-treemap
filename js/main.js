@@ -6,11 +6,14 @@ import { reduceStep } from './reducer.js';
 import { layoutTreemap, exprToSegments } from './treemap.js';
 import { TreemapRenderer } from './renderer.js';
 import { ReductionAnimator } from './animator.js';
+import { expandVariables } from './variables.js';
 
 const AUTO_MAX_STEPS = 200;
 const AUTO_STEP_DELAY_MS = 180;
 
 const input = document.getElementById('expr-input');
+const variablesList = document.getElementById('variables-list');
+const addVarBtn = document.getElementById('add-variable-btn');
 const presetsEl = document.getElementById('presets');
 const parseBtn = document.getElementById('parse-btn');
 const stepBtn = document.getElementById('step-btn');
@@ -107,11 +110,54 @@ function stopEverything() {
   state.autoRunning = false;
 }
 
+/** 변수 목록 행들을 {name, value}로 읽는다. 이름이 비어 있는 행은 무시. */
+function readVariables() {
+  return Array.from(variablesList.querySelectorAll('.variable-row'))
+    .map((row) => ({
+      name: row.querySelector('.var-name').value.trim(),
+      value: row.querySelector('.var-value').value.trim(),
+    }))
+    .filter((v) => v.name !== '');
+}
+
+function addVariableRow(name = '', value = '') {
+  const row = document.createElement('div');
+  row.className = 'variable-row';
+
+  const nameInput = document.createElement('input');
+  nameInput.className = 'var-name';
+  nameInput.type = 'text';
+  nameInput.placeholder = '이름';
+  nameInput.value = name;
+  nameInput.spellcheck = false;
+  nameInput.autocapitalize = 'off';
+
+  const valueInput = document.createElement('input');
+  valueInput.className = 'var-value';
+  valueInput.type = 'text';
+  valueInput.placeholder = '값 (예: λx. x)';
+  valueInput.value = value;
+  valueInput.spellcheck = false;
+  valueInput.autocapitalize = 'off';
+
+  const delBtn = document.createElement('button');
+  delBtn.type = 'button';
+  delBtn.className = 'var-delete';
+  delBtn.textContent = '삭제';
+  delBtn.addEventListener('click', () => row.remove());
+
+  row.append(nameInput, valueInput, delBtn);
+  variablesList.appendChild(row);
+}
+
+addVarBtn.addEventListener('click', () => addVariableRow());
+
 function parseCurrent() {
   stopEverything();
   errorEl.textContent = '';
   try {
-    state.ast = parse(input.value);
+    const expanded = expandVariables(input.value, readVariables());
+    state.ast = parse(expanded);
     state.steps = 0;
     render();
     refreshTreemap();

@@ -14,7 +14,12 @@
 
   <main>
     <section id="controls">
-      <input id="expr-input" type="text" placeholder="예: (λx. λy. x) a b" aria-label="람다 대수 식 입력" spellcheck="false" autocapitalize="off">
+      <input id="expr-input" type="text" placeholder="예: (λx. λy. x) a b — $이름, $숫자(교회 숫자) 사용 가능" aria-label="람다 대수 식 입력" spellcheck="false" autocapitalize="off">
+      <details id="variables-details">
+        <summary>변수 ($이름 치환)</summary>
+        <div id="variables-list"></div>
+        <button type="button" id="add-variable-btn" class="var-add">+ 변수 추가</button>
+      </details>
       <div id="presets" class="presets" aria-label="예시 식">
         <button type="button" class="preset" data-expr="(λx. λy. x) a b">K 조합자</button>
         <button type="button" class="preset" data-expr="(λx. x x) (λy. y)">자기 적용</button>
