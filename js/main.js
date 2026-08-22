@@ -152,9 +152,11 @@ function addVariableRow(name = '', value = '') {
 
 addVarBtn.addEventListener('click', () => addVariableRow());
 
-// 처음 로드 시 기본 산술 변수 6종을 목록에 채운다 (수정/삭제 가능).
-// 보조 변수($true, $pair 등)는 내장으로만 존재.
-const DEFAULT_UI_ORDER = ['add', 'sub', 'mul', 'div', 'succ', 'pred'];
+// 처음 로드 시 기본 변수 전체를 목록에 채운다 (수정/삭제 가능).
+const DEFAULT_UI_ORDER = [
+  'add', 'sub', 'mul', 'div', 'succ', 'pred',
+  'true', 'false', 'pair', 'fst', 'snd', 'iszero',
+];
 if (variablesList.children.length === 0) {
   for (const name of DEFAULT_UI_ORDER) {
     const entry = DEFAULT_VARIABLES.find((v) => v.name === name);
