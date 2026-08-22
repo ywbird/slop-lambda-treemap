@@ -131,3 +131,52 @@ function layout(node, rect, depth, env) {
 export function layoutTreemap(root, rect) {
   return layout(root, rect, 0, new Map());
 }
+
+/**
+ * 레이아웃 트리에서 AST 노드 참조가 일치하는 셀을 찾는다(애니메이션이
+ * 이전 트리에서 redex 위치를 찾을 때 사용).
+ * @returns {object|null}
+ */
+export function findCellByNode(root, node) {
+  if (!root) {
+    return null;
+  }
+  if (root.node === node) {
+    return root;
+  }
+  switch (root.kind) {
+    case 'lambda':
+      return findCellByNode(root.body, node);
+    case 'app':
+      return findCellByNode(root.func, node) ?? findCellByNode(root.arg, node);
+    default:
+      return null;
+  }
+}
+
+/**
+ * 서브트리에서 특정 색 키(바인딩 ID)를 가진 변수 셀을 전부 수집한다.
+ * 축약 애니메이션이 파라미터 변수의 목표 위치(들)를 찾을 때 사용.
+ * 같은 이름을 재바인딩하는 내부 λ는 다른 색 키를 가지므로 자동으로 제외된다.
+ * @returns {object[]}
+ */
+export function collectVarCellsByColorKey(root, key) {
+  const found = [];
+  function walk(cell) {
+    if (!cell) {
+      return;
+    }
+    if (cell.kind === 'var') {
+      if (cell.colorKey === key) {
+        found.push(cell);
+      }
+    } else if (cell.kind === 'lambda') {
+      walk(cell.body);
+    } else {
+      walk(cell.func);
+      walk(cell.arg);
+    }
+  }
+  walk(root);
+  return found;
+}

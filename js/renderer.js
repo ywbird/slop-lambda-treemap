@@ -50,6 +50,11 @@ export class TreemapRenderer {
     this.draw();
   }
 
+  /** 현재 그려진 레이아웃 위에 셀 하나를 겹쳐 그린다(애니메이션 오버레이용). */
+  drawOverlay(cell) {
+    this._drawCell(cell);
+  }
+
   draw() {
     const { ctx, dpr, w, h } = this;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parse } from '../js/parser.js';
 import { Var } from '../js/ast.js';
-import { layoutTreemap, weightOf, colorForKey } from '../js/treemap.js';
+import { layoutTreemap, weightOf, colorForKey, findCellByNode, collectVarCellsByColorKey } from '../js/treemap.js';
 
 const FULL = { x: 0, y: 0, w: 100, h: 100 };
 
@@ -181,4 +181,35 @@ test('모든 셀은 부모 영역 안에 contained', () => {
     }
   }
   walk(cell);
+});
+
+// ---------- 셀 탐색 헬퍼 (애니메이션용) ----------
+
+test('findCellByNode: AST 노드 참조로 셀을 찾는다', () => {
+  const ast = parse('(x y) z');
+  const cell = layoutTreemap(ast, FULL);
+  assert.strictEqual(findCellByNode(cell, ast), cell);
+  const funcCell = findCellByNode(cell, ast.func);
+  assert.strictEqual(funcCell.node, ast.func);
+  assert.ok(rectEq(funcCell.rect, { x: 0, y: 0, w: 200 / 3, h: 100 }));
+  assert.equal(findCellByNode(cell, Var('q')), null);
+});
+
+test('collectVarCellsByColorKey: 해당 바인딩의 발생만 수집', () => {
+  const ast = parse('λx. x (x y)');
+  const cell = layoutTreemap(ast, FULL);
+  const found = collectVarCellsByColorKey(cell, ast.bindingId);
+  assert.equal(found.length, 2);
+  assert.ok(found.every(c => c.kind === 'var' && c.colorKey === ast.bindingId));
+});
+
+test('collectVarCellsByColorKey: 같은 이름 재바인딩(섀도)은 제외', () => {
+  const ast = parse('λx. x (λx. x)');
+  const cell = layoutTreemap(ast, FULL);
+  const outer = collectVarCellsByColorKey(cell, ast.bindingId);
+  const innerId = ast.body.arg.bindingId;
+  const inner = collectVarCellsByColorKey(cell, innerId);
+  assert.equal(outer.length, 1); // 바깥 x만
+  assert.equal(inner.length, 1); // 안쪽 x만
+  assert.notEqual(outer[0], inner[0]);
 });
