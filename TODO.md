@@ -53,15 +53,15 @@
 
 ## 3. 베타 축약 (Beta Reduction)
 
-- [ ] 자유 변수(free variable) 계산 함수
-- [ ] 대입(substitution) 함수 `subst(expr, name, replacement)`
+- [x] 자유 변수(free variable) 계산 함수
+- [x] 대입(substitution) 함수 `subst(expr, name, replacement)`
   - **변수 캡처 주의**: 충돌 시 알파 변환(alpha conversion, 파라미터 이름 변경) 수행
-- [ ] 한 단계 축약 함수 (normal order: leftmost-outermost redex 탐색)
+- [x] 한 단계 축약 함수 (normal order: leftmost-outermost redex 탐색)
   - 축약 가능한 redex가 없으면 종료 상태 반환
   - 어떤 `app` 노드가 축약되었는지 정보를 반환 (애니메이션에 필요)
-- [ ] 전체 축약 루프 (스텝별 / 자동 진행)
-- [ ] 무한 루프 방지: 최대 스텝 수 제한
-- [ ] 람다 식을 문자열로 되돌리는 pretty-printer (괄호 최소화)
+- [x] 전체 축약 루프 (스텝별 / 자동 진행)
+- [x] 무한 루프 방지: 최대 스텝 수 제한
+- [x] 람다 식을 문자열로 되돌리는 pretty-printer (괄호 최소화)
 
 ---
 
