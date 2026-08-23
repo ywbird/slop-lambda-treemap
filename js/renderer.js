@@ -57,24 +57,24 @@ export class TreemapRenderer {
    * 애니메이션 프레임용: 배경 위에 보간된 셀 트리를 그리고, 고스트를
    * 지정된 투명도로 겹쳐 그린다.
    * 고스트는 λ 셀이면 테두리만, var 셀이면 채운 셀로 그린다.
-   * (사라지는 λ 테두리, 보간 중 유지되는 치환 대상 변수 슬롯)
+   * ghost.rect를 주면 셀 원래 rect 대신 그 위치에 그린다(슬롯 이동용).
    * @param {object} tree morph 중간 셀 트리
-   * @param {{cell: object, alpha: number}[]} [ghosts]
+   * @param {{cell: object, alpha: number, rect?: object}[]} [ghosts]
    */
   renderMorph(tree, ghosts = []) {
     this.layout = null;
     this.draw();
     this._drawCell(tree);
     for (const ghost of ghosts) {
+      const r = ghost.rect ?? ghost.cell.rect;
       this.ctx.save();
       this.ctx.globalAlpha = ghost.alpha;
       if (ghost.cell.kind === 'var') {
-        const r = ghost.cell.rect;
         this.ctx.fillStyle = ghost.cell.color;
         this.ctx.fillRect(r.x, r.y, r.w, r.h);
         this._drawLabel(ghost.cell.node.name, r);
       } else if (ghost.cell.kind === 'lambda') {
-        this._drawLambdaBorder(ghost.cell, ghost.cell.rect);
+        this._drawLambdaBorder(ghost.cell, r);
       }
       this.ctx.restore();
     }

@@ -6,6 +6,7 @@ import {
   pathToNode,
   morphAlong,
   redexTargets,
+  slotMorphs,
   EASINGS,
 } from '../js/animator.js';
 import { parse } from '../js/parser.js';
@@ -111,6 +112,32 @@ test('redexTargets: 파라미터가 등장하지 않으면 빈 목록', () => {
   const ast = parse('(λx. y) z');
   const r = reduceStep(ast);
   assert.equal(redexTargets(layoutTreemap(ast, FULL), r.redex).length, 0);
+});
+
+test('slotMorphs: 치환 슬롯과 새 레이아웃의 복제본 위치를 짝지음', () => {
+  const ast = parse('(λx. x x) y');
+  const r = reduceStep(ast); // → y y
+  const oldL = layoutTreemap(ast, FULL);
+  const newL = layoutTreemap(r.expr, FULL);
+  const path = pathToNode(ast, r.redex.app);
+  const slots = slotMorphs(oldL, newL, path, r.redex);
+
+  assert.equal(slots.length, 2);
+  // 도착 위치는 새 레이아웃의 y 복제본(func/arg) 위치
+  assert.deepEqual(slots[0].dest.rect, newL.func.rect);
+  assert.deepEqual(slots[1].dest.rect, newL.arg.rect);
+  // 슬롯 자체는 옛 x 위치에서 시작
+  assert.deepEqual(slots[0].slot.rect, oldL.func.body.func.rect);
+  assert.deepEqual(slots[1].slot.rect, oldL.func.body.arg.rect);
+});
+
+test('slotMorphs: 중첩 redex 경로에서도 대응', () => {
+  const ast = parse('z ((λx. x x) y)');
+  const r = reduceStep(ast);
+  const oldL = layoutTreemap(ast, FULL);
+  const newL = layoutTreemap(r.expr, FULL);
+  const slots = slotMorphs(oldL, newL, pathToNode(ast, r.redex.app), r.redex);
+  assert.equal(slots.length, 2);
 });
 
 test('morphAlong: e=1이면 축약 후 레이아웃과 정확히 일치', () => {

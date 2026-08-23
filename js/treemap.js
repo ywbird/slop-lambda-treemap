@@ -201,6 +201,33 @@ export function layoutTreemap(root, rect) {
 }
 
 /**
+ * 서브트리에서 AST 노드 참조가 일치하는 셀을 전부 수집한다(구조 순서).
+ * 축약 후 새 레이아웃에서 인자 복제본 위치(들)를 찾을 때 사용.
+ * @param {object} root 레이아웃 셀
+ * @param {object} node AST 노드
+ * @returns {object[]}
+ */
+export function collectCellsByNode(root, node) {
+  const found = [];
+  function walk(cell) {
+    if (!cell) {
+      return;
+    }
+    if (cell.node === node) {
+      found.push(cell);
+    }
+    if (cell.kind === 'lambda') {
+      walk(cell.body);
+    } else if (cell.kind === 'app') {
+      walk(cell.func);
+      walk(cell.arg);
+    }
+  }
+  walk(root);
+  return found;
+}
+
+/**
  * 레이아웃 트리에서 AST 노드 참조가 일치하는 셀을 찾는다(애니메이션이
  * 이전 트리에서 redex 위치를 찾을 때 사용).
  * @returns {object|null}

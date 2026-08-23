@@ -12,6 +12,7 @@ import {
   layoutTreemap,
   findCellByNode,
   collectVarCellsByColorKey,
+  collectCellsByNode,
 } from './treemap.js';
 
 /** ease-in-out (cubic). t∈[0,1] → [0,1] */
@@ -196,6 +197,29 @@ export function redexTargets(oldLayout, redex) {
   );
 }
 
+/**
+ * 치환 슬롯(옛 변수 셀)과 새 레이아웃에서 대응하는 인자 복제본 셀을 짝짓는다.
+ * 슬롯 고스트가 body 확장을 따라 옛 위치 → 도착 위치로 보간되게 한다.
+ * 두 컬렉션 모두 구조 순서(pre-order)라 첫째부터 인덱스로 대응된다.
+ * @param {object} oldLayout 축약 전 전체 레이아웃
+ * @param {object} newLayout 축약 후 전체 레이아웃
+ * @param {string[]} path pathToNode(oldAst, redex.app)
+ * @param {{app: object, arg: object}} redex
+ * @returns {{slot: object, dest: object}[]}
+ */
+export function slotMorphs(oldLayout, newLayout, path, redex) {
+  const targets = redexTargets(oldLayout, redex);
+  if (targets.length === 0) {
+    return [];
+  }
+  let region = newLayout;
+  for (const key of path) {
+    region = region[key];
+  }
+  const destinations = collectCellsByNode(region, redex.arg);
+  return targets.map((slot, i) => ({ slot, dest: destinations[i] ?? slot }));
+}
+
 export class ReductionAnimator {
   /** @param {import('./renderer.js').TreemapRenderer} renderer */
   constructor(renderer) {
@@ -238,8 +262,8 @@ export class ReductionAnimator {
 
     // 소비되는 λ: 테두리만 페이드아웃하는 고스트
     const ghost = { cell: appCell.func, alpha: 1 };
-    // 치환 대상 변수 셀들: 보간 중엔 그대로 존재, 마지막 프레임부터 제거
-    const targets = redexTargets(oldLayout, redex);
+    // 치환 슬롯: 보간 중엔 존재하되 body 확장을 따라 이동, 끝나면 사라짐
+    const slots = slotMorphs(oldLayout, newLayout, path, redex);
 
     const start = performance.now();
     const frame = (now) => {
@@ -248,8 +272,12 @@ export class ReductionAnimator {
       const tree = morphAlong(oldLayout, newLayout, path, eased, appCell.arg, paramKey);
       const ghosts = [{ cell: ghost.cell, alpha: 1 - eased }];
       if (t < 1) {
-        for (const target of targets) {
-          ghosts.push({ cell: target, alpha: 1 });
+        for (const { slot, dest } of slots) {
+          ghosts.push({
+            cell: slot,
+            alpha: 1,
+            rect: lerpRect(slot.rect, dest.rect, eased),
+          });
         }
       }
       this.renderer.renderMorph(tree, ghosts);
