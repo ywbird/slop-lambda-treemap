@@ -141,14 +141,18 @@ export function reduceStep(node) {
     case 'app': {
       if (node.func.type === 'lambda') {
         // 이 노드 자체가 최외각 redex.
-        // 치환 결과에 depthOffset(redex의 유효 깊이 + 1)을 붙여
-        // λ body가 redex 자리로 승격돼도 내부 분할 방향이 유지되게 한다.
         let result = subst(node.func.body, node.func.param, node.arg);
         if (result === node.arg) {
           // 항등 치환: 공유 노드 그대로 마킹하면 이전 트리까지 오염 — 복제
           result = cloneRootForMark(result);
         }
-        withDepthOffset(result, (node.depthOffset ?? 0) + 1);
+        // 몸통 루트가 적용일 때만 λ body가 redex 자리로 승격되며 뒤집히는
+        // 분할 방향을 보존한다(depthOffset = redex 유효 깊이 + 1).
+        // 몸통 루트가 λ(λf x. body 체인의 남은 λ)면 그 자리로 확장되는
+        // 것이라 오프셋 없이 새로 계산 — 결과는 fresh 파싱과 동일한 레이아웃.
+        if (result.type === 'app') {
+          withDepthOffset(result, (node.depthOffset ?? 0) + 1);
+        }
         return {
           reduced: true,
           expr: result,

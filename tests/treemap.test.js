@@ -321,6 +321,21 @@ test('중첩 축약에서 오프셋 누적 — (λx. x x) (λy. y y)', () => {
   assert.ok(isHorizontalSplit(l2), '2단계 후 루트 가로 유지');
 });
 
+test('λ 체인 축약 결과는 fresh 파싱과 동일한 레이아웃 — a ((λf x. f x) a b)', () => {
+  // 색/bindingId는 계보마다 다르므로 지오메트리(종류+rect)만 비교
+  const shape = (cell) =>
+    cell.kind === 'var'
+      ? { kind: cell.kind, rect: cell.rect }
+      : cell.kind === 'lambda'
+        ? { kind: cell.kind, rect: cell.rect, body: shape(cell.body) }
+        : { kind: cell.kind, rect: cell.rect, func: shape(cell.func), arg: shape(cell.arg) };
+  const ast = parse('a ((λf x. f x) a b)');
+  const r = reduceStep(ast); // → a ((λx. a x) b)
+  const reduced = layoutTreemap(r.expr, FULL);
+  const fresh = layoutTreemap(parse('a ((λx. a x) b)'), FULL);
+  assert.deepEqual(shape(reduced), shape(fresh));
+});
+
 // ---------- 셀 탐색 헬퍼 (애니메이션용) ----------
 
 test('findCellByNode: AST 노드 참조로 셀을 찾는다', () => {
