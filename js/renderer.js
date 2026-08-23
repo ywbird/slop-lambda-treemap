@@ -110,8 +110,8 @@ export class TreemapRenderer {
   draw() {
     const { ctx, dpr, w, h } = this;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    // 패널 배경
-    ctx.fillStyle = '#171a20';
+    // 패널 배경 (네오브루탈리즘 흰 캔버스)
+    ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, w, h);
     if (this.layout) {
       this._drawCell(this.layout);
