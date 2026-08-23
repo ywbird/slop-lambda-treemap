@@ -34,6 +34,11 @@
         <button id="auto-btn" type="button" disabled>자동 축약</button>
         <button id="reset-btn" type="button">초기화</button>
       </div>
+      <div class="speed-control">
+        <label for="speed-slider">애니메이션 속도</label>
+        <input id="speed-slider" type="range" min="200" max="2000" step="100" value="700">
+        <output id="speed-value" for="speed-slider">700ms</output>
+      </div>
       <p id="status" class="status" aria-live="polite"></p>
       <p id="error" class="error" aria-live="polite"></p>
     </section>

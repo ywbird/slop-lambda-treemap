@@ -9,9 +9,10 @@ import { ReductionAnimator } from './animator.js';
 import { expandVariables, DEFAULT_VARIABLES, churchNumeralOf } from './variables.js';
 
 const AUTO_MAX_STEPS = 200;
-const AUTO_STEP_DELAY_MS = 180;
 
 const input = document.getElementById('expr-input');
+const speedSlider = document.getElementById('speed-slider');
+const speedValue = document.getElementById('speed-value');
 const variablesList = document.getElementById('variables-list');
 const addVarBtn = document.getElementById('add-variable-btn');
 const presetsEl = document.getElementById('presets');
@@ -88,6 +89,15 @@ function refreshTreemap() {
   renderer.setLayout(layoutTreemap(state.ast, { x: 0, y: 0, w, h }));
 }
 
+/** 슬라이더로 조절되는 애니메이션 지속시간(ms). 모든 보간은 ease-in-out. */
+function animationDuration() {
+  return Number(speedSlider.value);
+}
+
+speedSlider.addEventListener('input', () => {
+  speedValue.textContent = `${speedSlider.value}ms`;
+});
+
 /**
  * 한 스텝 축약을 커밋하고 애니메이션 후 새 레이아웃으로 교체한다.
  * 상태(expr, 스텝 수, 텍스트)는 즉시 갱신하고 화면은 onDone에서 교체.
@@ -103,6 +113,7 @@ function commitStep(result, after) {
     oldAst,
     newAst: state.ast,
     redex: result.redex,
+    durationMs: animationDuration(),
     onDone: () => {
       state.animating = false;
       refreshTreemap();
@@ -256,7 +267,8 @@ autoBtn.addEventListener('click', () => {
     autoSteps++;
     commitStep(result, () => {
       if (state.autoRunning) {
-        setTimeout(stepOnce, AUTO_STEP_DELAY_MS);
+        // 스텝 사이 쉼도 속도에 비례 (짧게)
+        setTimeout(stepOnce, Math.max(60, Math.round(animationDuration() / 4)));
       }
     });
   };

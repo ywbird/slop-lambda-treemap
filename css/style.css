@@ -79,6 +79,24 @@ main {
   flex-wrap: wrap;
 }
 
+.speed-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.speed-control input[type='range'] {
+  flex: 0 1 220px;
+  accent-color: var(--accent);
+}
+
+.speed-control output {
+  font-family: ui-monospace, monospace;
+  min-width: 52px;
+}
+
 .presets {
   display: flex;
   gap: 6px;
