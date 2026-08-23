@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { easeInOutCubic, lerpRect, pathToNode, morphAlong } from '../js/animator.js';
+import { easeInOutCubic, lerpRect, pathToNode, morphAlong, EASINGS } from '../js/animator.js';
 import { parse } from '../js/parser.js';
 import { reduceStep } from '../js/reducer.js';
 import { layoutTreemap } from '../js/treemap.js';
@@ -11,6 +11,47 @@ test('easeInOutCubic: 끝점과 중간값', () => {
   assert.equal(easeInOutCubic(0), 0);
   assert.equal(easeInOutCubic(1), 1);
   assert.equal(easeInOutCubic(0.5), 0.5);
+});
+
+test('EASINGS: 모든 보간 함수는 끝점이 0과 1', () => {
+  for (const [name, fn] of Object.entries(EASINGS)) {
+    assert.ok(Math.abs(fn(0)) < 1e-9, `${name}(0)`);
+    assert.ok(Math.abs(fn(1) - 1) < 1e-9, `${name}(1)`);
+  }
+});
+
+test('EASINGS: linear은 항등함수', () => {
+  assert.equal(EASINGS.linear(0.37), 0.37);
+});
+
+test('EASINGS: ease 계열은 단조 증가', () => {
+  for (const name of ['ease-in', 'ease-out', 'ease-in-out']) {
+    let prev = -Infinity;
+    for (let i = 0; i <= 20; i++) {
+      const v = EASINGS[name](i / 20);
+      assert.ok(v >= prev, `${name} t=${i / 20}에서 감소함`);
+      prev = v;
+    }
+  }
+});
+
+test('EASINGS: back-out/elastic-out은 목표를 넘어섰다 돌아옴', () => {
+  const maxValue = (fn) => {
+    let m = -Infinity;
+    for (let i = 1; i < 100; i++) {
+      m = Math.max(m, fn(i / 100));
+    }
+    return m;
+  };
+  assert.ok(maxValue(EASINGS['back-out']) > 1, 'back-out overshoot');
+  assert.ok(maxValue(EASINGS['elastic-out']) > 1, 'elastic-out overshoot');
+});
+
+test('EASINGS: bounce-out은 1을 넘지 않음', () => {
+  for (let i = 0; i <= 40; i++) {
+    const v = EASINGS['bounce-out'](i / 40);
+    assert.ok(v >= -1e-9 && v <= 1 + 1e-9, `bounce-out(${i / 40}) = ${v}`);
+  }
 });
 
 test('easeInOutCubic: 단조 증가', () => {

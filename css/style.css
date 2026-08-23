@@ -97,6 +97,15 @@ main {
   min-width: 52px;
 }
 
+.speed-control select {
+  font: 0.85rem ui-monospace, monospace;
+  padding: 3px 6px;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid #333842;
+  border-radius: 4px;
+}
+
 .presets {
   display: flex;
   gap: 6px;

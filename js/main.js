@@ -5,7 +5,7 @@ import { dumpAst } from './ast.js';
 import { reduceStep } from './reducer.js';
 import { layoutTreemap, exprToSegments } from './treemap.js';
 import { TreemapRenderer } from './renderer.js';
-import { ReductionAnimator } from './animator.js';
+import { ReductionAnimator, EASINGS } from './animator.js';
 import { expandVariables, DEFAULT_VARIABLES, churchNumeralOf } from './variables.js';
 
 const AUTO_MAX_STEPS = 200;
@@ -13,6 +13,7 @@ const AUTO_MAX_STEPS = 200;
 const input = document.getElementById('expr-input');
 const speedSlider = document.getElementById('speed-slider');
 const speedValue = document.getElementById('speed-value');
+const easingSelect = document.getElementById('easing-select');
 const variablesList = document.getElementById('variables-list');
 const addVarBtn = document.getElementById('add-variable-btn');
 const presetsEl = document.getElementById('presets');
@@ -89,9 +90,23 @@ function refreshTreemap() {
   renderer.setLayout(layoutTreemap(state.ast, { x: 0, y: 0, w, h }));
 }
 
-/** 슬라이더로 조절되는 애니메이션 지속시간(ms). 모든 보간은 ease-in-out. */
+/** 슬라이더로 조절되는 애니메이션 지속시간(ms). */
 function animationDuration() {
   return Number(speedSlider.value);
+}
+
+/** 선택된 보간 함수 */
+function animationEasing() {
+  return EASINGS[easingSelect.value] ?? EASINGS['ease-in-out'];
+}
+
+// 보간 함수 옵션 채우기 (기본: ease-in-out)
+for (const [name, fn] of Object.entries(EASINGS)) {
+  const opt = document.createElement('option');
+  opt.value = name;
+  opt.textContent = name;
+  opt.selected = name === 'ease-in-out';
+  easingSelect.appendChild(opt);
 }
 
 speedSlider.addEventListener('input', () => {
@@ -114,6 +129,7 @@ function commitStep(result, after) {
     newAst: state.ast,
     redex: result.redex,
     durationMs: animationDuration(),
+    easing: animationEasing(),
     onDone: () => {
       state.animating = false;
       refreshTreemap();

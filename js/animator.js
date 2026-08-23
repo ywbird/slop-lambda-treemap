@@ -15,6 +15,43 @@ export function easeInOutCubic(t) {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
+/**
+ * 애니메이션 보간 함수 목록 (UI 선택용). 모두 f(0)=0, f(1)=1.
+ * back-out/elastic-out은 중간에 목표를 넘어섰다 돌아온다.
+ */
+function bounceOut(t) {
+  const n1 = 7.5625;
+  const d1 = 2.75;
+  if (t < 1 / d1) {
+    return n1 * t * t;
+  } else if (t < 2 / d1) {
+    return n1 * (t -= 1.5 / d1) * t + 0.75;
+  } else if (t < 2.5 / d1) {
+    return n1 * (t -= 2.25 / d1) * t + 0.9375;
+  }
+  return n1 * (t -= 2.625 / d1) * t + 0.984375;
+}
+
+export const EASINGS = {
+  linear: (t) => t,
+  'ease-in': (t) => t * t * t,
+  'ease-out': (t) => 1 - Math.pow(1 - t, 3),
+  'ease-in-out': easeInOutCubic,
+  'back-out': (t) => {
+    const c1 = 1.70158;
+    const c3 = c1 + 1;
+    return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+  },
+  'bounce-out': bounceOut,
+  'elastic-out': (t) => {
+    if (t === 0 || t === 1) {
+      return t;
+    }
+    const c4 = (2 * Math.PI) / 3;
+    return Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1;
+  },
+};
+
 /** 두 rect를 t 비율로 선형 보간한다. */
 export function lerpRect(from, to, t) {
   const inv = 1 - t;
@@ -154,9 +191,11 @@ export class ReductionAnimator {
    * @param {object} options.newAst 축약 후 AST (reduceStep 결과)
    * @param {{app: object, param: string, arg: object}} options.redex
    * @param {number} [options.durationMs=700]
+   * @param {(t: number) => number} [options.easing=easeInOutCubic]
+   *   EASINGS의 보간 함수
    * @param {() => void} [options.onDone] 완료 콜백
    */
-  animateRedex({ oldAst, newAst, redex, durationMs = 700, onDone }) {
+  animateRedex({ oldAst, newAst, redex, durationMs = 700, easing = easeInOutCubic, onDone }) {
     this.cancel();
 
     const { w, h } = this.renderer.getSize();
@@ -180,7 +219,7 @@ export class ReductionAnimator {
     const start = performance.now();
     const frame = (now) => {
       const t = Math.min(1, (now - start) / durationMs);
-      const eased = easeInOutCubic(t);
+      const eased = easing(t);
       const tree = morphAlong(oldLayout, newLayout, path, eased, appCell.arg, paramKey);
       this.renderer.renderMorph(tree, [{ cell: ghost.cell, alpha: 1 - eased }]);
       if (t < 1) {
