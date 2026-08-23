@@ -6,7 +6,7 @@ import { reduceStep } from './reducer.js';
 import { layoutTreemap, exprToSegments } from './treemap.js';
 import { TreemapRenderer } from './renderer.js';
 import { ReductionAnimator } from './animator.js';
-import { expandVariables, DEFAULT_VARIABLES } from './variables.js';
+import { expandVariables, DEFAULT_VARIABLES, churchNumeralOf } from './variables.js';
 
 const AUTO_MAX_STEPS = 200;
 const AUTO_STEP_DELAY_MS = 180;
@@ -48,6 +48,14 @@ function renderStatus(suffix = '') {
       span.style.color = seg.color;
     }
     statusEl.appendChild(span);
+  }
+  // 결과 전체가 교회 숫자 형태면 값 표기
+  const numeral = churchNumeralOf(state.ast);
+  if (numeral !== null) {
+    const badge = document.createElement('span');
+    badge.className = 'numeral-badge';
+    badge.textContent = ` = $${numeral}`;
+    statusEl.appendChild(badge);
   }
   if (suffix) {
     const tail = document.createElement('span');

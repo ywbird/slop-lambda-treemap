@@ -42,6 +42,28 @@ export function churchNumeral(n) {
 }
 
 /**
+ * 식이 교회 숫자 형태면 그 값을, 아니면 null을 반환한다.
+ * 형태: λf. λx. f (f (... (f x))) — 파라미터 이름은 무관(알파 변형 허용),
+ * λf. λx. x 는 0.
+ * @param {object} node AST 루트
+ * @returns {number|null}
+ */
+export function churchNumeralOf(node) {
+  if (node.type !== 'lambda' || node.body.type !== 'lambda') {
+    return null;
+  }
+  const f = node.param;
+  const x = node.body.param;
+  let body = node.body.body;
+  let count = 0;
+  while (body.type === 'app' && body.func.type === 'var' && body.func.name === f) {
+    count++;
+    body = body.arg;
+  }
+  return body.type === 'var' && body.name === x ? count : null;
+}
+
+/**
  * 소스의 $<숫자>, $<이름>을 치환한 문자열을 반환한다.
  * @param {string} source 원본 식
  * @param {{name: string, value: string}[]} variables 변수 목록

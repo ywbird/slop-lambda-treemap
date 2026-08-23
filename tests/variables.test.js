@@ -1,9 +1,42 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { churchNumeral, expandVariables } from '../js/variables.js';
+import { churchNumeral, expandVariables, churchNumeralOf } from '../js/variables.js';
 import { parse } from '../js/parser.js';
 import { reduceAll } from '../js/reducer.js';
 import { exprToString } from '../js/ast.js';
+
+// ---------- churchNumeralOf (형태 인식) ----------
+
+test('churchNumeralOf: 표준형 인식', () => {
+  assert.equal(churchNumeralOf(parse('λf. λx. x')), 0);
+  assert.equal(churchNumeralOf(parse('λf. λx. f x')), 1);
+  assert.equal(churchNumeralOf(parse('λf. λx. f (f (f x))')), 3);
+});
+
+test('churchNumeralOf: 알파 변형(파라미터 이름 무관) 인식', () => {
+  assert.equal(churchNumeralOf(parse('λx. λx1. x (x (x x1))')), 3);
+  assert.equal(churchNumeralOf(parse('\\s. λz. s (s z)')), 2);
+});
+
+test('churchNumeralOf: 교회 숫자가 아니면 null', () => {
+  assert.equal(churchNumeralOf(parse('x')), null);
+  assert.equal(churchNumeralOf(parse('λf. x')), null);
+  assert.equal(churchNumeralOf(parse('λf. λx. f y')), null); // 몸통이 x로 안 끝남
+  assert.equal(churchNumeralOf(parse('λf. λx. g (f x)')), null); // 첫 적용이 f가 아님
+  assert.equal(churchNumeralOf(parse('λf. λx. f (f (g x))')), null);
+  assert.equal(churchNumeralOf(parse('(λf. λx. f x) y')), null); // 전체가 숫자가 아님
+});
+
+test('churchNumeralOf: churchNumeral과 왕복', () => {
+  for (let n = 0; n <= 5; n++) {
+    assert.equal(churchNumeralOf(parse(churchNumeral(n))), n);
+  }
+});
+
+test('churchNumeralOf: 축약 결과가 교회 숫자인 경우', () => {
+  const r = reduceAll(parse(expandVariables('$add $2 $3', [])), { maxSteps: 5000 });
+  assert.equal(churchNumeralOf(r.expr), 5);
+});
 
 // ---------- churchNumeral ----------
 

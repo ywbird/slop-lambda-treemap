@@ -169,6 +169,10 @@ button:disabled {
   min-height: 1.2em;
 }
 
+.numeral-badge {
+  color: var(--accent);
+}
+
 .error {
   margin: 0;
   color: var(--error);
