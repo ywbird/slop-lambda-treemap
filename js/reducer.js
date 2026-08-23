@@ -90,42 +90,6 @@ export function subst(expr, name, replacement) {
 }
 
 /**
- * 치환 결과에 레이아웃 깊이 오프셋을 표시한다(비enumerable).
- * 축약으로 λ body가 redex 자리로 승격되면 구조적 깊이가 한 단계 올라가
- * 분할 방향(가로/세로)이 뒤집히는데, 오프셋으로 "λ 안에 있던 깊이"를
- * 유지해 대상 추상화 내부의 레이아웃 방향이 축약 후에도 보존되게 한다.
- * 중첩 축약에서는 redex 자신의 오프셋에 1을 더해 누적한다.
- */
-function withDepthOffset(node, offset) {
-  Object.defineProperty(node, 'depthOffset', {
-    value: offset,
-    enumerable: false,
-  });
-  return node;
-}
-
-/**
- * 항등 치환(body가 파라미터 하나)의 결과는 이전 트리와 공유되는 인자 노드
- * 그 자체다. 마킹이 이전 트리의 레이아웃을 오염시키지 않게 루트만 얕은
- * 복사한다. bindingId는 이어받고, replacedFrom으로 원본 대응을 남겨
- * 애니메이션이 복제본 위치를 찾을 수 있게 한다.
- */
-function cloneRootForMark(node) {
-  const copy = { ...node };
-  if (node.bindingId !== undefined) {
-    Object.defineProperty(copy, 'bindingId', {
-      value: node.bindingId,
-      enumerable: false,
-    });
-  }
-  Object.defineProperty(copy, 'replacedFrom', {
-    value: node,
-    enumerable: false,
-  });
-  return copy;
-}
-
-/**
  * 한 단계 축약 (normal order: 최외각/최좌측 redex를 먼저 축약,
  * 추상화 body 내부의 redex도 축약한다).
  * @param {object} node
@@ -140,22 +104,10 @@ export function reduceStep(node) {
 
     case 'app': {
       if (node.func.type === 'lambda') {
-        // 이 노드 자체가 최외각 redex.
-        let result = subst(node.func.body, node.func.param, node.arg);
-        if (result === node.arg) {
-          // 항등 치환: 공유 노드 그대로 마킹하면 이전 트리까지 오염 — 복제
-          result = cloneRootForMark(result);
-        }
-        // 몸통 루트가 적용일 때만 λ body가 redex 자리로 승격되며 뒤집히는
-        // 분할 방향을 보존한다(depthOffset = redex 유효 깊이 + 1).
-        // 몸통 루트가 λ(λf x. body 체인의 남은 λ)면 그 자리로 확장되는
-        // 것이라 오프셋 없이 새로 계산 — 결과는 fresh 파싱과 동일한 레이아웃.
-        if (result.type === 'app') {
-          withDepthOffset(result, (node.depthOffset ?? 0) + 1);
-        }
+        // 이 노드 자체가 최외각 redex
         return {
           reduced: true,
-          expr: result,
+          expr: subst(node.func.body, node.func.param, node.arg),
           redex: { app: node, param: node.func.param, arg: node.arg },
         };
       }

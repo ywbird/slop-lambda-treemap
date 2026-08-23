@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import { parse } from '../js/parser.js';
 import { Var } from '../js/ast.js';
 import { exprToString } from '../js/ast.js';
-import { reduceStep } from '../js/reducer.js';
 import {
   layoutTreemap,
   weightOf,
@@ -279,61 +278,6 @@ test('모든 셀은 부모 영역 안에 contained', () => {
     }
   }
   walk(cell);
-});
-
-// ---------- 치환 후 내부 방향 보존 (depthOffset) ----------
-
-const isVerticalSplit = (c) =>
-  approx(c.func.rect.x, c.arg.rect.x) && c.arg.rect.y > c.func.rect.y;
-const isHorizontalSplit = (c) =>
-  approx(c.func.rect.y, c.arg.rect.y) && c.arg.rect.x > c.func.rect.x;
-
-test('치환 후에도 대상 추상화 내부의 분할 방향 유지 — (λx. x x) (a b c d)', () => {
-  const ast = parse('(λx. x x) (a b c d)');
-  const r = reduceStep(ast);
-  const oldL = layoutTreemap(ast, FULL);
-  const newL = layoutTreemap(r.expr, FULL);
-
-  // 축약 전: λ body의 x x app은 세로(깊이 1)
-  assert.ok(isVerticalSplit(oldL.func.body), 'x x 세로');
-  // 축약 후: 승격된 루트 app도 세로여야 함 (깊이 오프셋)
-  assert.ok(isVerticalSplit(newL), '치환 결과도 세로');
-});
-
-test('치환 후 방향 유지 — (λx. x) (a b)', () => {
-  const ast = parse('(λx. x) (a b)');
-  const r = reduceStep(ast);
-  const oldL = layoutTreemap(ast, FULL);
-  // 축약 전: 인자 a b는 오른쪽(깊이 1)에서 세로 분할
-  assert.ok(isVerticalSplit(oldL.arg), 'a b 세로');
-  // 축약 후: 루트가 된 a b도 세로
-  assert.ok(isVerticalSplit(layoutTreemap(r.expr, FULL)), '승격 후에도 세로');
-});
-
-test('중첩 축약에서 오프셋 누적 — (λx. x x) (λy. y y)', () => {
-  let ast = parse('(λx. x x) (λy. y y)');
-  let r = reduceStep(ast); // → (λy. y y) (λy. y y), 루트 세로
-  assert.ok(isVerticalSplit(layoutTreemap(r.expr, FULL)), '1단계 후 루트 세로');
-
-  const r2 = reduceStep(r.expr); // → (λy. y y) (λy. y y)의 redex → 루트 승격
-  const l2 = layoutTreemap(r2.expr, FULL);
-  // 직전 단계에서 내부 y y는 깊이 2(가로)였다 — 승격 후에도 가로
-  assert.ok(isHorizontalSplit(l2), '2단계 후 루트 가로 유지');
-});
-
-test('λ 체인 축약 결과는 fresh 파싱과 동일한 레이아웃 — a ((λf x. f x) a b)', () => {
-  // 색/bindingId는 계보마다 다르므로 지오메트리(종류+rect)만 비교
-  const shape = (cell) =>
-    cell.kind === 'var'
-      ? { kind: cell.kind, rect: cell.rect }
-      : cell.kind === 'lambda'
-        ? { kind: cell.kind, rect: cell.rect, body: shape(cell.body) }
-        : { kind: cell.kind, rect: cell.rect, func: shape(cell.func), arg: shape(cell.arg) };
-  const ast = parse('a ((λf x. f x) a b)');
-  const r = reduceStep(ast); // → a ((λx. a x) b)
-  const reduced = layoutTreemap(r.expr, FULL);
-  const fresh = layoutTreemap(parse('a ((λx. a x) b)'), FULL);
-  assert.deepEqual(shape(reduced), shape(fresh));
 });
 
 // ---------- 셀 탐색 헬퍼 (애니메이션용) ----------

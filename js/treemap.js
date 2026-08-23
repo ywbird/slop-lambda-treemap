@@ -90,10 +90,6 @@ function splitRect(rect, ratio, vertically, gap) {
 }
 
 function layout(node, rect, depth, env) {
-  // 축약으로 승격된 서브트리는 λ 안에 있던 깊이를 유지한다(depthOffset).
-  if (node.depthOffset !== undefined) {
-    depth += node.depthOffset;
-  }
   switch (node.type) {
     case 'var': {
       const bindingId = env.get(node.name);
@@ -217,8 +213,7 @@ export function collectCellsByNode(root, node) {
     if (!cell) {
       return;
     }
-    // replacedFrom: 항등 치환으로 복제된 루트도 원본 노드로 인식
-    if (cell.node === node || cell.node.replacedFrom === node) {
+    if (cell.node === node) {
       found.push(cell);
     }
     if (cell.kind === 'lambda') {
