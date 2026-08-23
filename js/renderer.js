@@ -54,8 +54,10 @@ export class TreemapRenderer {
   }
 
   /**
-   * 애니메이션 프레임용: 배경 위에 보간된 셀 트리를 그리고,
-   * 소비되는 λ 테두리 같은 고스트를 지정된 투명도로 겹쳐 그린다.
+   * 애니메이션 프레임용: 배경 위에 보간된 셀 트리를 그리고, 고스트를
+   * 지정된 투명도로 겹쳐 그린다.
+   * 고스트는 λ 셀이면 테두리만, var 셀이면 채운 셀로 그린다.
+   * (사라지는 λ 테두리, 보간 중 유지되는 치환 대상 변수 슬롯)
    * @param {object} tree morph 중간 셀 트리
    * @param {{cell: object, alpha: number}[]} [ghosts]
    */
@@ -66,7 +68,14 @@ export class TreemapRenderer {
     for (const ghost of ghosts) {
       this.ctx.save();
       this.ctx.globalAlpha = ghost.alpha;
-      this._drawLambdaBorder(ghost.cell, ghost.cell.rect);
+      if (ghost.cell.kind === 'var') {
+        const r = ghost.cell.rect;
+        this.ctx.fillStyle = ghost.cell.color;
+        this.ctx.fillRect(r.x, r.y, r.w, r.h);
+        this._drawLabel(ghost.cell.node.name, r);
+      } else if (ghost.cell.kind === 'lambda') {
+        this._drawLambdaBorder(ghost.cell, ghost.cell.rect);
+      }
       this.ctx.restore();
     }
   }

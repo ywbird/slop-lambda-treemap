@@ -1,6 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { easeInOutCubic, lerpRect, pathToNode, morphAlong, EASINGS } from '../js/animator.js';
+import {
+  easeInOutCubic,
+  lerpRect,
+  pathToNode,
+  morphAlong,
+  redexTargets,
+  EASINGS,
+} from '../js/animator.js';
 import { parse } from '../js/parser.js';
 import { reduceStep } from '../js/reducer.js';
 import { layoutTreemap } from '../js/treemap.js';
@@ -85,6 +92,26 @@ test('pathToNode: 루트/중첩 경로/미발견', () => {
 });
 
 // ---------- morphAlong ----------
+
+test('redexTargets: 파라미터 발생 위치(치환 대상 슬롯) 반환', () => {
+  const ast = parse('(λx. x x) y');
+  const r = reduceStep(ast);
+  const oldL = layoutTreemap(ast, FULL);
+  const targets = redexTargets(oldL, r.redex);
+  assert.equal(targets.length, 2);
+  assert.ok(targets.every((c) => c.kind === 'var'));
+  // 섀도 재바인딩은 제외
+  const shadow = parse('(λx. x (λx. x)) y');
+  const rs = reduceStep(shadow);
+  const oldS = layoutTreemap(shadow, FULL);
+  assert.equal(redexTargets(oldS, rs.redex).length, 1);
+});
+
+test('redexTargets: 파라미터가 등장하지 않으면 빈 목록', () => {
+  const ast = parse('(λx. y) z');
+  const r = reduceStep(ast);
+  assert.equal(redexTargets(layoutTreemap(ast, FULL), r.redex).length, 0);
+});
 
 test('morphAlong: e=1이면 축약 후 레이아웃과 정확히 일치', () => {
   const ast = parse('(λx. x) (y z)');

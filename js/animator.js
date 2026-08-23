@@ -8,7 +8,11 @@
 //     인자가 차지하던 공간을 포함한 전체 영역으로 자연스럽게 확장
 //   - 소비되는 λ 테두리는 페이드아웃 (고스트)
 
-import { layoutTreemap, findCellByNode } from './treemap.js';
+import {
+  layoutTreemap,
+  findCellByNode,
+  collectVarCellsByColorKey,
+} from './treemap.js';
 
 /** ease-in-out (cubic). t∈[0,1] → [0,1] */
 export function easeInOutCubic(t) {
@@ -173,6 +177,25 @@ export function morphAlong(oldCell, newCell, path, e, argCell, paramKey) {
   return result;
 }
 
+/**
+ * redex의 파라미터 변수가 축약 전 레이아웃에서 차지하던 셀(치환 대상) 목록.
+ * 애니메이션 동안 이 셀들을 그대로 그렸다가(고스트) 보간이 끝나면 사라지게
+ * 해서, 복제본이 도착하기 전에 슬롯이 먼저 비어 보이지 않게 한다.
+ * @param {object} oldLayout 축약 전 전체 레이아웃
+ * @param {{app: object}} redex
+ * @returns {object[]} var 셀 배열
+ */
+export function redexTargets(oldLayout, redex) {
+  const appCell = findCellByNode(oldLayout, redex.app);
+  if (!appCell || appCell.kind !== 'app' || appCell.node.func.type !== 'lambda') {
+    return [];
+  }
+  return collectVarCellsByColorKey(
+    appCell.func.body,
+    appCell.node.func.bindingId
+  );
+}
+
 export class ReductionAnimator {
   /** @param {import('./renderer.js').TreemapRenderer} renderer */
   constructor(renderer) {
@@ -215,13 +238,21 @@ export class ReductionAnimator {
 
     // 소비되는 λ: 테두리만 페이드아웃하는 고스트
     const ghost = { cell: appCell.func, alpha: 1 };
+    // 치환 대상 변수 셀들: 보간 중엔 그대로 존재, 마지막 프레임부터 제거
+    const targets = redexTargets(oldLayout, redex);
 
     const start = performance.now();
     const frame = (now) => {
       const t = Math.min(1, (now - start) / durationMs);
       const eased = easing(t);
       const tree = morphAlong(oldLayout, newLayout, path, eased, appCell.arg, paramKey);
-      this.renderer.renderMorph(tree, [{ cell: ghost.cell, alpha: 1 - eased }]);
+      const ghosts = [{ cell: ghost.cell, alpha: 1 - eased }];
+      if (t < 1) {
+        for (const target of targets) {
+          ghosts.push({ cell: target, alpha: 1 });
+        }
+      }
+      this.renderer.renderMorph(tree, ghosts);
       if (t < 1) {
         this._raf = requestAnimationFrame(frame);
         return;
