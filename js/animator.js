@@ -262,7 +262,7 @@ export class ReductionAnimator {
 
     // 소비되는 λ: 테두리만 페이드아웃하는 고스트
     const ghost = { cell: appCell.func, alpha: 1 };
-    // 치환 슬롯: 보간 중엔 존재하되 body 확장을 따라 이동, 끝나면 사라짐
+    // 치환 슬롯: body 확장을 따라 이동하며 트리 아래에서 fade out
     const slots = slotMorphs(oldLayout, newLayout, path, redex);
 
     const start = performance.now();
@@ -271,14 +271,12 @@ export class ReductionAnimator {
       const eased = easing(t);
       const tree = morphAlong(oldLayout, newLayout, path, eased, appCell.arg, paramKey);
       const ghosts = [{ cell: ghost.cell, alpha: 1 - eased }];
-      if (t < 1) {
-        for (const { slot, dest } of slots) {
-          ghosts.push({
-            cell: slot,
-            alpha: 1,
-            rect: lerpRect(slot.rect, dest.rect, eased),
-          });
-        }
+      for (const { slot, dest } of slots) {
+        ghosts.push({
+          cell: slot,
+          alpha: 1 - eased,
+          rect: lerpRect(slot.rect, dest.rect, eased),
+        });
       }
       this.renderer.renderMorph(tree, ghosts);
       if (t < 1) {

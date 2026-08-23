@@ -54,9 +54,9 @@ export class TreemapRenderer {
   }
 
   /**
-   * 애니메이션 프레임용: 배경 위에 보간된 셀 트리를 그리고, 고스트를
-   * 지정된 투명도로 겹쳐 그린다.
-   * 고스트는 λ 셀이면 테두리만, var 셀이면 채운 셀로 그린다.
+   * 애니메이션 프레임용: 배경 위에 보간된 셀 트리를 그리고 고스트를 얹는다.
+   * - var 고스트(치환 슬롯): 트리 아래에 그려짐 — 복제본이 위를 덮으며 슬롯은 fade out
+   * - λ 고스트(소비되는 테두리): 트리 위에 fade out
    * ghost.rect를 주면 셀 원래 rect 대신 그 위치에 그린다(슬롯 이동용).
    * @param {object} tree morph 중간 셀 트리
    * @param {{cell: object, alpha: number, rect?: object}[]} [ghosts]
@@ -64,20 +64,32 @@ export class TreemapRenderer {
   renderMorph(tree, ghosts = []) {
     this.layout = null;
     this.draw();
+    for (const ghost of ghosts) {
+      if (ghost.cell.kind === 'var') {
+        this._drawGhost(ghost);
+      }
+    }
     this._drawCell(tree);
     for (const ghost of ghosts) {
-      const r = ghost.rect ?? ghost.cell.rect;
-      this.ctx.save();
-      this.ctx.globalAlpha = ghost.alpha;
-      if (ghost.cell.kind === 'var') {
-        this.ctx.fillStyle = ghost.cell.color;
-        this.ctx.fillRect(r.x, r.y, r.w, r.h);
-        this._drawLabel(ghost.cell.node.name, r);
-      } else if (ghost.cell.kind === 'lambda') {
-        this._drawLambdaBorder(ghost.cell, r);
+      if (ghost.cell.kind !== 'var') {
+        this._drawGhost(ghost);
       }
-      this.ctx.restore();
     }
+  }
+
+  _drawGhost(ghost) {
+    const r = ghost.rect ?? ghost.cell.rect;
+    this.ctx.save();
+    // 오버슈트 보간(back-out 등)에서 eased가 1을 넘어 alpha가 범위를 벗어나지 않게
+    this.ctx.globalAlpha = Math.max(0, Math.min(1, ghost.alpha));
+    if (ghost.cell.kind === 'var') {
+      this.ctx.fillStyle = ghost.cell.color;
+      this.ctx.fillRect(r.x, r.y, r.w, r.h);
+      this._drawLabel(ghost.cell.node.name, r);
+    } else if (ghost.cell.kind === 'lambda') {
+      this._drawLambdaBorder(ghost.cell, r);
+    }
+    this.ctx.restore();
   }
 
   /** λ 셀의 테두리를 그린다. 굵기는 셀 간 간격과 동일한 공식(cellGap). */
