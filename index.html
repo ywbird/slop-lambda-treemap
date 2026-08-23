@@ -28,13 +28,11 @@
         <button type="button" class="preset" data-expr="(λn. λf. λx. f (n f x)) (λf. λx. f x) a b">후속 숫자</button>
         <button type="button" class="preset" data-expr="(λx. x x) (λx. x x)">오메가</button>
       </div>
-      <div class="buttons">
+      <div class="buttons speed-control">
         <button id="parse-btn" type="button">파싱</button>
         <button id="step-btn" type="button" disabled>한 스텝 축약</button>
         <button id="auto-btn" type="button" disabled>자동 축약</button>
         <button id="reset-btn" type="button">초기화</button>
-      </div>
-      <div class="speed-control">
         <label for="speed-slider">애니메이션 속도</label>
         <input id="speed-slider" type="range" min="200" max="2000" step="100" value="700">
         <output id="speed-value" for="speed-slider">700ms</output>
