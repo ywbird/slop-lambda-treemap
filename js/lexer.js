@@ -4,7 +4,7 @@
 
 export class LambdaSyntaxError extends Error {
   constructor(message, pos) {
-    super(`${message} (위치: ${pos}번째 문자)`);
+    super(`${message} (at position ${pos})`);
     this.name = 'LambdaSyntaxError';
     this.pos = pos;
   }
@@ -21,7 +21,7 @@ const IDENT_CHAR = /[A-Za-z0-9_]/;
  */
 export function tokenize(source) {
   if (typeof source !== 'string') {
-    throw new LambdaSyntaxError('입력은 문자열이어야 합니다', 0);
+    throw new LambdaSyntaxError('Input must be a string', 0);
   }
 
   const tokens = [];
@@ -70,7 +70,7 @@ export function tokenize(source) {
       continue;
     }
 
-    throw new LambdaSyntaxError(`허용되지 않는 문자 '${ch}'`, i);
+    throw new LambdaSyntaxError(`Unexpected character '${ch}'`, i);
   }
 
   tokens.push({ type: 'EOF', pos: n });

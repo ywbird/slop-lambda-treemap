@@ -41,7 +41,7 @@ class Parser {
     const token = this.peek();
     if (token.type !== type) {
       throw new LambdaSyntaxError(
-        `${what}이(가) 필요하지만 '${describeToken(token)}'이(가) 나왔습니다`,
+        `Expected ${what} but found '${describeToken(token)}'`,
         token.pos
       );
     }
@@ -59,7 +59,7 @@ class Parser {
 
     const params = [];
     do {
-      params.push(this.expect('IDENT', '매개변수 이름').value);
+      params.push(this.expect('IDENT', 'a parameter name').value);
     } while (this.peek().type === 'IDENT');
     this.expect('DOT', "'.'");
 
@@ -91,7 +91,7 @@ class Parser {
       return expr;
     }
     throw new LambdaSyntaxError(
-      `변수 또는 '('이(가) 필요하지만 '${describeToken(token)}'이(가) 나왔습니다`,
+      `Expected a variable or '(' but found '${describeToken(token)}'`,
       token.pos
     );
   }
@@ -109,7 +109,7 @@ export function parse(source) {
   const trailing = parser.peek();
   if (trailing.type !== 'EOF') {
     throw new LambdaSyntaxError(
-      `예상치 못한 토큰 '${describeToken(trailing)}'`,
+      `Unexpected token '${describeToken(trailing)}'`,
       trailing.pos
     );
   }
