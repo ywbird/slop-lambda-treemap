@@ -6,6 +6,6 @@ Lambda calculus visualizer web app: parse lambda expressions into ASTs, perform 
 
 ## Conventions
 
-- No external libraries or frameworks — plain HTML, vanilla JS (ES modules), CSS only.
+- No external libraries or frameworks — plain HTML, vanilla JS (ES modules), CSS only. **Exception:** GIF encoding uses [gif.js](https://github.com/jnordberg/gif.js) v0.2.0 (MIT) vendored under `vendor/`. Everything else stays library-free.
 - Follow the checklist in `TODO.md`; mark items off as they are completed.
 - Git: one commit per change / feature addition (small, logical commits). The workspace has no git repo yet — run `git init` before the first commit.

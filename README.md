@@ -5,6 +5,7 @@
 람다 대수 식을 파싱해 2D binary treemap으로 시각화하고, 베타 축약이
 일어나는 과정을 애니메이션으로 보여주는 웹 앱입니다.
 외부 라이브러리 없이 HTML + Vanilla JS(ES modules) + CSS만으로 작성됐습니다.
+(GIF 인코딩만 예외: [gif.js](https://github.com/jnordberg/gif.js) v0.2.0 — MIT, `vendor/`.)
 
 ## 기능
 
