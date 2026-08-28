@@ -208,7 +208,7 @@ export function exportGif({
       onProgress?.(++frameIndex, totalFrames);
       if (k === framesPerStep - 1) settled = { tree, ghosts };
     }
-    for (let h = 0; h < holdFrames; h++) {
+    for (let n = 0; n < holdFrames; n++) {
       offRenderer.renderMorph(settled.tree, settled.ghosts);
       gif.addFrame(ctx.getImageData(0, 0, w, h), { delay: delayMs });
       onProgress?.(++frameIndex, totalFrames);
