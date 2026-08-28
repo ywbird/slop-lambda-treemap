@@ -7,6 +7,7 @@ import { layoutTreemap, exprToSegments } from './treemap.js';
 import { TreemapRenderer } from './renderer.js';
 import { ReductionAnimator, EASINGS } from './animator.js';
 import { expandVariables, DEFAULT_VARIABLES, churchNumeralOf } from './variables.js';
+import { exportPng, exportGif } from './exporter.js';
 
 const AUTO_MAX_STEPS = 200;
 
@@ -21,6 +22,8 @@ const parseBtn = document.getElementById('parse-btn');
 const stepBtn = document.getElementById('step-btn');
 const autoBtn = document.getElementById('auto-btn');
 const resetBtn = document.getElementById('reset-btn');
+const exportPngBtn = document.getElementById('export-png-btn');
+const exportGifBtn = document.getElementById('export-gif-btn');
 const statusEl = document.getElementById('status');
 const errorEl = document.getElementById('error');
 
@@ -32,6 +35,7 @@ const state = {
   steps: 0,
   animating: false,
   autoRunning: false,
+  exporting: false,
 };
 
 /**
@@ -72,13 +76,16 @@ function render() {
 
 function updateButtons() {
   const hasAst = state.ast !== null;
+  const busy = state.animating || state.autoRunning || state.exporting;
   // 한 스텝: AST가 있고 애니메이션/자동 진행 중이 아닐 때
-  stepBtn.disabled = !hasAst || state.animating || state.autoRunning;
+  stepBtn.disabled = !hasAst || busy;
   // 자동: 실행 중에는 언제나 눌러 정지 가능, 그 외엔 AST가 있고 대기 중일 때
   autoBtn.disabled =
     (!hasAst && !state.autoRunning) || (state.animating && !state.autoRunning);
   autoBtn.textContent = state.autoRunning ? '정지' : '자동 축약';
   parseBtn.disabled = state.animating || state.autoRunning;
+  exportPngBtn.disabled = !hasAst || busy;
+  exportGifBtn.disabled = !hasAst || busy;
 }
 
 function refreshTreemap() {
@@ -300,6 +307,51 @@ resetBtn.addEventListener('click', () => {
   render();
   refreshTreemap();
   updateButtons();
+});
+
+exportPngBtn.addEventListener('click', async () => {
+  if (!state.ast || state.exporting) return;
+  state.exporting = true;
+  errorEl.textContent = '';
+  try {
+    await exportPng(renderer);
+    statusEl.textContent = '';
+    renderStatus('  (PNG 저장 완료)');
+  } catch (e) {
+    errorEl.textContent = e.message;
+  } finally {
+    state.exporting = false;
+    updateButtons();
+  }
+});
+
+exportGifBtn.addEventListener('click', async () => {
+  if (!state.ast || state.exporting) return;
+  // 진행 중 다른 작업 잠금 (자동 축약이 돌고 있으면 거기서 멈춤).
+  if (state.autoRunning) {
+    state.autoRunning = false;
+  }
+  state.exporting = true;
+  errorEl.textContent = '';
+  updateButtons();
+  try {
+    await exportGif({
+      renderer,
+      ast: state.ast,
+      frameMs: animationDuration(),
+      onProgress: (i, total) => {
+        statusEl.textContent = '';
+        renderStatus(`  (GIF 생성 중... ${i}/${total})`);
+      },
+    });
+    statusEl.textContent = '';
+    renderStatus('  (GIF 저장 완료)');
+  } catch (e) {
+    errorEl.textContent = e.message;
+  } finally {
+    state.exporting = false;
+    updateButtons();
+  }
 });
 
 window.addEventListener('resize', () => {

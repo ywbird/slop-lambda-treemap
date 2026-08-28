@@ -12,6 +12,8 @@
   --yellow: #ffd93d;
   --green: #b5e48c;
   --pink: #ffb3c6;
+  --cyan: #90e0ef;
+  --orange: #ffb347;
 }
 
 * {
@@ -105,6 +107,8 @@ button {
 #parse-btn { background: var(--yellow); }
 #step-btn { background: var(--green); }
 #auto-btn { background: var(--pink); }
+#export-png-btn { background: var(--cyan); }
+#export-gif-btn { background: var(--orange); }
 
 button:hover:not(:disabled) {
   transform: translate(-2px, -2px);
