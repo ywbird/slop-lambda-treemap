@@ -65,6 +65,66 @@ main {
   padding: 12px 24px 24px;
 }
 
+/* ----- 보기 모드: 세로 / 좌우 / 트리맵만 ----- */
+
+.layout-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.layout-control select {
+  font: 700 0.85rem ui-monospace, monospace;
+  padding: 4px 8px;
+  background: var(--panel);
+  color: var(--text);
+  border: 2px solid var(--border);
+  border-radius: 0;
+}
+
+/* 헤더(약 110px) + main 위쪽 패딩(12px) 을 뺀 높이를 viewport 에 맞춘다.
+   헤더는 콘텐츠 기반 가변 높이이므로 약간의 여유(130px)를 둔다. */
+main.layout-side-by-side,
+main.layout-treemap-only {
+  height: calc(100vh - 130px);
+}
+
+main.layout-side-by-side {
+  flex-direction: row;
+  align-items: stretch;
+}
+
+main.layout-side-by-side #controls {
+  flex: 0 0 420px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+main.layout-side-by-side #canvas-wrap {
+  flex: 1;
+  min-height: 0;
+}
+
+main.layout-side-by-side #treemap-canvas {
+  height: 100%;
+}
+
+main.layout-treemap-only #controls {
+  display: none;
+}
+
+main.layout-treemap-only #canvas-wrap {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
+main.layout-treemap-only #treemap-canvas {
+  height: 100%;
+}
+
 #controls {
   display: flex;
   flex-direction: column;
@@ -343,10 +403,37 @@ button:disabled {
   border: 3px solid var(--border);
   box-shadow: var(--shadow);
   padding: 10px;
+  position: relative;
 }
 
 #treemap-canvas {
   display: block;
   width: 100%;
   height: 60vh;
+}
+
+/* 트리맵만 모드에서만 보이는 떠 있는 상태/에러 패널. */
+#overlay-status {
+  display: none;
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  max-width: 60%;
+  background: var(--panel);
+  border: 3px solid var(--border);
+  box-shadow: var(--shadow);
+  padding: 8px 12px;
+  z-index: 10;
+}
+
+#overlay-status p {
+  margin: 0;
+}
+
+#overlay-status p + p:not(:empty) {
+  margin-top: 4px;
+}
+
+main.layout-treemap-only #overlay-status {
+  display: block;
 }

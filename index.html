@@ -15,6 +15,14 @@
 
   <main>
     <section id="controls">
+      <div class="layout-control">
+        <label for="layout-mode">보기</label>
+        <select id="layout-mode" aria-label="레이아웃 모드">
+          <option value="stacked">세로 (기본)</option>
+          <option value="side-by-side">좌우 (입력 ↔ 트리맵)</option>
+          <option value="treemap-only">트리맵만</option>
+        </select>
+      </div>
       <input id="expr-input" type="text" placeholder="예: (λx. λy. x) a b — λ 대신 \ 로도 입력 가능 — $이름, $숫자(교회 숫자) 사용 가능" aria-label="람다 대수 식 입력" spellcheck="false" autocapitalize="off">
       <details id="variables-details">
         <summary>변수 ($이름 치환)</summary>
@@ -56,6 +64,10 @@
 
     <section id="canvas-wrap">
       <canvas id="treemap-canvas"></canvas>
+      <div id="overlay-status" aria-live="polite">
+        <p id="status-overlay" class="status"></p>
+        <p id="error-overlay" class="error"></p>
+      </div>
     </section>
   </main>
 

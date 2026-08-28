@@ -29,6 +29,10 @@ const exportHeightInput = document.getElementById('export-height');
 const colorListEl = document.getElementById('color-list');
 const statusEl = document.getElementById('status');
 const errorEl = document.getElementById('error');
+const statusOverlayEl = document.getElementById('status-overlay');
+const errorOverlayEl = document.getElementById('error-overlay');
+const layoutModeSelect = document.getElementById('layout-mode');
+const mainEl = document.querySelector('main');
 
 const renderer = new TreemapRenderer(document.getElementById('treemap-canvas'));
 const animator = new ReductionAnimator(renderer);
@@ -41,6 +45,7 @@ const state = {
   exporting: false,
   colorOverrides: new Map(),
   bindingsByName: new Map(),
+  layoutMode: 'stacked',
 };
 
 /**
@@ -83,6 +88,45 @@ function renderStatus(suffix = '') {
 function render() {
   renderStatus(state.steps > 0 ? `  (${state.steps}단계 축약)` : '');
 }
+
+/** 트리맵만 모드에서 떠 있는 상태/에러 패널에 동일 텍스트를 복사한다. */
+function mirrorStatusToOverlay() {
+  if (statusOverlayEl) statusOverlayEl.textContent = statusEl.textContent;
+  if (errorOverlayEl) errorOverlayEl.textContent = errorEl.textContent;
+}
+
+/**
+ * main 요소에 layout-* 클래스를 부여하고 캔버스 크기 변화에 대응한다.
+ * CSS 가 동기적으로 레이아웃을 바꾸므로 같은 틱에 renderer.handleResize() 로
+ * 비트맵 크기를 다시 잡고 새 크기로 트리맵을 다시 그린다.
+ */
+function applyLayoutMode() {
+  mainEl.className = `layout-${state.layoutMode}`;
+  layoutModeSelect.value = state.layoutMode;
+  renderer.handleResize();
+  refreshTreemap();
+}
+
+/**
+ * status / error 의 어떤 갱신도 오버레이에 그대로 반영되도록 MutationObserver 로
+ * 자동 동기화. 트리맵만 모드에서만 오버레이가 보이므로 다른 모드에서는 사실상
+ * 무시되지만 textContent 복사는 비용이 거의 없다.
+ */
+new MutationObserver(mirrorStatusToOverlay).observe(statusEl, {
+  childList: true,
+  characterData: true,
+  subtree: true,
+});
+new MutationObserver(mirrorStatusToOverlay).observe(errorEl, {
+  childList: true,
+  characterData: true,
+  subtree: true,
+});
+
+layoutModeSelect.addEventListener('change', () => {
+  state.layoutMode = layoutModeSelect.value;
+  applyLayoutMode();
+});
 
 function updateButtons() {
   const hasAst = state.ast !== null;
@@ -539,4 +583,5 @@ window.addEventListener('resize', () => {
 });
 
 syncExportSizeInputs();
+applyLayoutMode(); // 초기 클래스 적용 + 사이즈 동기화
 updateButtons();
