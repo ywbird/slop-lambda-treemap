@@ -37,19 +37,12 @@ function downloadBlob(blob, filename) {
   URL.revokeObjectURL(url);
 }
 
-export async function exportPng(renderer, ast) {
-  const w = renderer.w;
-  const h = renderer.h;
+export async function exportPng(renderer, ast, { width, height } = {}) {
+  const w = width ?? renderer.w;
+  const h = height ?? renderer.h;
   if (w < 2 || h < 2) throw new Error('캔버스 크기가 너무 작아 PNG 를 만들 수 없습니다.');
 
-  const surface = makeOffscreen(w, h);
-  const ctx = getCtx2d(surface);
-  const offRenderer = new TreemapRenderer(surface);
-  offRenderer.setSize(w, h, 1);
-  // 배경(흰색)을 깔고 인셋 영역으로 트리맵을 그린다.
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, w, h);
+  const { surface, ctx, offRenderer } = buildExportSurface(w, h);
   offRenderer.setLayout(layoutTreemap(ast, paddedBounds(w, h)));
 
   const blob = await new Promise((resolve, reject) =>
@@ -62,7 +55,7 @@ export async function exportPng(renderer, ast) {
           )
         )
   );
-  downloadBlob(blob, `lambda-treemap-${timestamp()}.png`);
+  downloadBlob(blob, `lambda-treemap-${w}x${h}-${timestamp()}.png`);
 }
 
 // ----- 오프스크린 캔버스 -----
@@ -85,6 +78,21 @@ function getCtx2d(surface) {
 
 function readPixels(ctx, w, h) {
   return new Uint8ClampedArray(ctx.getImageData(0, 0, w, h).data.buffer);
+}
+
+/**
+ * (w, h) 크기의 오프스크린 캔버스 + TreemapRenderer + 2d ctx 를 만든다.
+ * 배경은 흰색으로 미리 채워서 내보낼 때 인셋 영역 바깥이 비지 않게 한다.
+ */
+function buildExportSurface(w, h) {
+  const surface = makeOffscreen(w, h);
+  const ctx = getCtx2d(surface);
+  const offRenderer = new TreemapRenderer(surface);
+  offRenderer.setSize(w, h, 1);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, w, h);
+  return { surface, ctx, offRenderer };
 }
 
 /**
@@ -287,8 +295,10 @@ function localColorTableBytes(palette) {
 /**
  * 주어진 AST 의 베타 축약을 전체 재생한 GIF 를 생성해 다운로드한다.
  * @param {object} options
- * @param {TreemapRenderer} options.renderer  현재 화면의 렌더러 (크기/스케일 참고용)
+ * @param {TreemapRenderer} options.renderer  현재 화면의 렌더러 (기본 크기 참고용)
  * @param {object} options.ast              축약 시작 AST
+ * @param {number} [options.width]          출력 캔버스 가로 px (기본 renderer.w)
+ * @param {number} [options.height]         출력 캔버스 세로 px (기본 renderer.h)
  * @param {number} [options.maxFrames=60]   비정규형(예: 오메가)일 때 캡
  * @param {number} [options.frameMs=700]    한 보간 프레임당 ms (스피드 슬라이더 값)
  * @param {(i:number,total:number)=>void} [options.onProgress]
@@ -296,19 +306,17 @@ function localColorTableBytes(palette) {
 export async function exportGif({
   renderer,
   ast,
+  width,
+  height,
   maxFrames = DEFAULT_MAX_FRAMES,
   frameMs = 700,
   onProgress,
 }) {
-  const w = renderer.w;
-  const h = renderer.h;
+  const w = width ?? renderer.w;
+  const h = height ?? renderer.h;
   if (w < 2 || h < 2) throw new Error('캔버스 크기가 너무 작아 GIF 를 만들 수 없습니다.');
 
-  // 오프스크린 렌더러 (현재 화면은 건드리지 않음).
-  const surface = makeOffscreen(w, h);
-  const ctx = getCtx2d(surface);
-  const offRenderer = new TreemapRenderer(surface);
-  offRenderer.setSize(w, h, 1);
+  const { ctx, offRenderer } = buildExportSurface(w, h);
 
   const { history } = reduceAll(ast, { maxSteps: maxFrames });
   const stepCount = Math.max(0, history.length - 1); // 변이(스텝) 수
@@ -364,5 +372,5 @@ export async function exportGif({
 
   chunks.push(new Uint8Array([0x3b])); // trailer
   const blob = new Blob(chunks, { type: 'image/gif' });
-  downloadBlob(blob, `lambda-treemap-reduction-${timestamp()}.gif`);
+  downloadBlob(blob, `lambda-treemap-reduction-${w}x${h}-${timestamp()}.gif`);
 }

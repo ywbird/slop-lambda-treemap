@@ -24,6 +24,8 @@ const autoBtn = document.getElementById('auto-btn');
 const resetBtn = document.getElementById('reset-btn');
 const exportPngBtn = document.getElementById('export-png-btn');
 const exportGifBtn = document.getElementById('export-gif-btn');
+const exportWidthInput = document.getElementById('export-width');
+const exportHeightInput = document.getElementById('export-height');
 const statusEl = document.getElementById('status');
 const errorEl = document.getElementById('error');
 
@@ -105,6 +107,34 @@ function animationDuration() {
 /** 선택된 보간 함수 */
 function animationEasing() {
   return EASINGS[easingSelect.value] ?? EASINGS['ease-in-out'];
+}
+
+/**
+ * 내보내기 크기 입력값을 검증해 {width, height}로 돌려준다.
+ * 잘못된 값이면 현재 캔버스 크기로 폴백하고 status에 경고를 남긴다.
+ * ponytail: 너무 빡빡한 검증은 과잉 — 숫자 + 범위만 본다.
+ */
+function readExportSize() {
+  const fallback = { w: renderer.w, h: renderer.h };
+  const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
+  const parse = (input) => {
+    const v = Number(input.value);
+    return Number.isFinite(v) && v > 0 ? Math.round(v) : NaN;
+  };
+  const w = parse(exportWidthInput);
+  const h = parse(exportHeightInput);
+  if (Number.isNaN(w) || Number.isNaN(h)) {
+    statusEl.textContent = '';
+    renderStatus(`  (내보내기 크기 입력 오류 — 현재 캔버스 ${fallback.w}×${fallback.h} 사용)`);
+    return fallback;
+  }
+  return { w: clamp(w, 100, 10000), h: clamp(h, 100, 10000) };
+}
+
+/** 현재 캔버스 크기를 입력 기본값으로 채운다 (페이지 로드 + 파싱 후). */
+function syncExportSizeInputs() {
+  exportWidthInput.value = renderer.w;
+  exportHeightInput.value = renderer.h;
 }
 
 // 보간 함수 옵션 채우기 (기본: ease-in-out)
@@ -216,6 +246,7 @@ function parseCurrent() {
     render();
     refreshTreemap();
     updateButtons();
+    syncExportSizeInputs();
     console.log(dumpAst(state.ast));
   } catch (e) {
     state.ast = null;
@@ -311,10 +342,11 @@ resetBtn.addEventListener('click', () => {
 
 exportPngBtn.addEventListener('click', async () => {
   if (!state.ast || state.exporting) return;
+  const { w, h } = readExportSize();
   state.exporting = true;
   errorEl.textContent = '';
   try {
-    await exportPng(renderer, state.ast);
+    await exportPng(renderer, state.ast, { width: w, height: h });
     statusEl.textContent = '';
     renderStatus('  (PNG 저장 완료)');
   } catch (e) {
@@ -327,6 +359,7 @@ exportPngBtn.addEventListener('click', async () => {
 
 exportGifBtn.addEventListener('click', async () => {
   if (!state.ast || state.exporting) return;
+  const { w, h } = readExportSize();
   // 진행 중 다른 작업 잠금 (자동 축약이 돌고 있으면 거기서 멈춤).
   if (state.autoRunning) {
     state.autoRunning = false;
@@ -338,6 +371,8 @@ exportGifBtn.addEventListener('click', async () => {
     await exportGif({
       renderer,
       ast: state.ast,
+      width: w,
+      height: h,
       frameMs: animationDuration(),
       onProgress: (i, total) => {
         statusEl.textContent = '';
@@ -359,4 +394,5 @@ window.addEventListener('resize', () => {
   refreshTreemap();
 });
 
+syncExportSizeInputs();
 updateButtons();

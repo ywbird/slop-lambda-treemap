@@ -35,6 +35,10 @@
         <button id="reset-btn" type="button">초기화</button>
         <button id="export-png-btn" type="button" disabled>PNG 내보내기</button>
         <button id="export-gif-btn" type="button" disabled>GIF 내보내기</button>
+        <label for="export-width">내보내기 크기 (px)</label>
+        <input id="export-width" type="number" min="100" max="10000" step="10" value="0" aria-label="내보내기 가로 px">
+        <span class="size-x">×</span>
+        <input id="export-height" type="number" min="100" max="10000" step="10" value="0" aria-label="내보내기 세로 px">
         <label for="speed-slider">애니메이션 속도</label>
         <input id="speed-slider" type="range" min="0" max="2000" step="100" value="700">
         <output id="speed-value" for="speed-slider">700ms</output>

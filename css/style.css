@@ -227,6 +227,22 @@ button:disabled {
   border-radius: 0;
 }
 
+.speed-control input[type='number'] {
+  font: 700 0.85rem ui-monospace, monospace;
+  padding: 4px 8px;
+  background: var(--panel);
+  color: var(--text);
+  border: 2px solid var(--border);
+  border-radius: 0;
+  width: 90px;
+  text-align: right;
+}
+
+.speed-control .size-x {
+  font-weight: 800;
+  color: var(--muted);
+}
+
 .status {
   margin: 0;
   color: var(--text);
