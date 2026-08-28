@@ -293,45 +293,89 @@ function buildColorRow(name) {
   const swatch = document.createElement('span');
   swatch.className = 'color-swatch';
 
-  const splashInput = document.createElement('input');
-  splashInput.type = 'text';
-  splashInput.inputMode = 'numeric';
-  splashInput.maxLength = 3;
-  splashInput.className = 'color-splash';
-  splashInput.setAttribute('aria-label', `${name} splash (RGB)`);
-  splashInput.title = '3-digit splash color (RGB): 000=black, 999=white, e.g. 900=red';
+  // splash 색은 3자리 RGB(각 자리 0..9) — 채널마다 드롭다운 하나씩.
+  const channels = [];
+  for (const [idx, ch] of ['R', 'G', 'B'].entries()) {
+    const sel = document.createElement('select');
+    sel.className = 'color-channel';
+    sel.setAttribute('aria-label', `${name} ${ch} channel (0-9)`);
+    for (let d = 0; d <= 9; d++) {
+      const opt = document.createElement('option');
+      opt.value = String(d);
+      opt.textContent = String(d);
+      sel.appendChild(opt);
+    }
+    channels.push(sel);
+  }
+
+  // 각 옵션을 "이 채널도 그 자릿수로 두었을 때"의 합성 splash 색으로 미리 보여준다.
+  // 예: G=3, B=8 일 때 R 드롭다운의 옵션 9 는 938, 옵션 8 은 838 색을 띤다.
+  const paintOptions = () => {
+    const cur = channels.map((s) => s.value);
+    for (let i = 0; i < 3; i++) {
+      for (const opt of channels[i].options) {
+        const digits = cur.slice();
+        digits[i] = opt.value;
+        const hsl = splashToHsl(digits.join(''));
+        if (!hsl) continue;
+        opt.style.backgroundColor = formatHsl(hsl);
+        opt.style.color = hsl.l < 50 ? '#ffffff' : '#111111';
+      }
+    }
+  };
 
   const reset = document.createElement('button');
   reset.type = 'button';
   reset.className = 'color-reset';
   reset.textContent = 'Reset';
 
-  row.append(nameEl, swatch, splashInput, reset);
+  row.append(nameEl, swatch, ...channels, reset);
+
+  const setChannels = (splash) => {
+    for (let i = 0; i < 3; i++) channels[i].value = splash[i];
+  };
 
   const syncFromColor = (hslStr) => {
     const m = hslStr.match(/^hsl\((\d+),\s*(\d+)%,\s*(\d+)%\)$/);
     if (!m) return;
-    splashInput.value = hslToSplash(hslStr);
+    setChannels(hslToSplash(hslStr));
     swatch.style.background = hslStr;
   };
   syncFromColor(effectiveColor(name));
+  paintOptions();
 
   let timer = null;
   const scheduleRebuild = () => {
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => {
       timer = null;
-      const hsl = splashToHsl(splashInput.value.trim());
+      const splash = channels.map((s) => s.value).join('');
+      const hsl = splashToHsl(splash);
       if (!hsl) return;
       const hslStr = formatHsl(hsl);
       state.colorOverrides.set(name, hslStr);
       swatch.style.background = hslStr;
-      splashInput.value = hslToSplash(hslStr);
+      setChannels(hslToSplash(hslStr));
       render();
       refreshTreemap();
     }, 100);
   };
-  splashInput.addEventListener('input', scheduleRebuild);
+  // 마우스 휠로 자릿수 순환 (위=증가, 아래=감소, 9↔0 반복). 페이지 스크롤 방지.
+  const stepChannel = (sel, dir) => {
+    sel.value = String((Number(sel.value) + dir + 10) % 10);
+    paintOptions();
+    scheduleRebuild();
+  };
+  for (const sel of channels) {
+    sel.addEventListener('change', () => {
+      paintOptions();
+      scheduleRebuild();
+    });
+    sel.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      stepChannel(sel, e.deltaY < 0 ? 1 : -1);
+    });
+  }
   reset.addEventListener('click', () => {
     if (timer) {
       clearTimeout(timer);

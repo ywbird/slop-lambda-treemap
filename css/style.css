@@ -467,7 +467,7 @@ button:disabled {
 
 .color-row {
   display: grid;
-  grid-template-columns: 70px 22px auto auto;
+  grid-template-columns: 70px 22px auto auto auto auto;
   align-items: center;
   justify-content: start;
   gap: 8px;
@@ -489,16 +489,19 @@ button:disabled {
   border: 2px solid var(--border);
 }
 
-.color-row .color-splash {
+.color-row .color-channel {
   width: 3ch;
   text-align: center;
   font-family: ui-monospace, monospace;
   font-size: 0.9rem;
   font-weight: 700;
-  letter-spacing: 0.4ch;
-  padding: 4px 6px;
+  padding: 4px 2px;
   background: var(--bg);
   border: 2px solid var(--border);
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: none;
+  cursor: pointer;
 }
 
 .color-row .color-reset {
