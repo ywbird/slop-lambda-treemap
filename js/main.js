@@ -86,7 +86,7 @@ function renderStatus(suffix = '') {
 }
 
 function render() {
-  renderStatus(state.steps > 0 ? `  (${state.steps}단계 축약)` : '');
+  renderStatus(state.steps > 0 ? `  (${state.steps} steps reduced)` : '');
 }
 
 /** 트리맵만 모드에서 떠 있는 상태/에러 패널에 동일 텍스트를 복사한다. */
@@ -136,7 +136,7 @@ function updateButtons() {
   // 자동: 실행 중에는 언제나 눌러 정지 가능, 그 외엔 AST가 있고 대기 중일 때
   autoBtn.disabled =
     (!hasAst && !state.autoRunning) || (state.animating && !state.autoRunning);
-  autoBtn.textContent = state.autoRunning ? '정지' : '자동 축약';
+  autoBtn.textContent = state.autoRunning ? 'Stop' : 'Auto-reduce';
   parseBtn.disabled = state.animating || state.autoRunning;
   exportPngBtn.disabled = !hasAst || busy;
   exportGifBtn.disabled = !hasAst || busy;
@@ -179,7 +179,7 @@ function readExportSize() {
   const h = parse(exportHeightInput);
   if (Number.isNaN(w) || Number.isNaN(h)) {
     statusEl.textContent = '';
-    renderStatus(`  (내보내기 크기 입력 오류 — 현재 캔버스 ${fallback.w}×${fallback.h} 사용)`);
+    renderStatus(`  (Invalid export size — falling back to current canvas ${fallback.w}×${fallback.h})`);
     return fallback;
   }
   return { w: clamp(w, 100, 10000), h: clamp(h, 100, 10000) };
@@ -274,7 +274,7 @@ function buildColorRow(name) {
   const reset = document.createElement('button');
   reset.type = 'button';
   reset.className = 'color-reset';
-  reset.textContent = '초기화';
+  reset.textContent = 'Reset';
 
   row.append(nameEl, swatch, sliders.h.parentElement, sliders.s.parentElement, sliders.l.parentElement, reset);
 
@@ -380,7 +380,7 @@ function addVariableRow(name = '', value = '') {
   const nameInput = document.createElement('input');
   nameInput.className = 'var-name';
   nameInput.type = 'text';
-  nameInput.placeholder = '이름';
+  nameInput.placeholder = 'name';
   nameInput.value = name;
   nameInput.spellcheck = false;
   nameInput.autocapitalize = 'off';
@@ -388,7 +388,7 @@ function addVariableRow(name = '', value = '') {
   const valueInput = document.createElement('input');
   valueInput.className = 'var-value';
   valueInput.type = 'text';
-  valueInput.placeholder = '값 (예: λx. x)';
+  valueInput.placeholder = 'value (e.g. λx. x)';
   valueInput.value = value;
   valueInput.spellcheck = false;
   valueInput.autocapitalize = 'off';
@@ -396,7 +396,7 @@ function addVariableRow(name = '', value = '') {
   const delBtn = document.createElement('button');
   delBtn.type = 'button';
   delBtn.className = 'var-delete';
-  delBtn.textContent = '삭제';
+  delBtn.textContent = 'Delete';
   delBtn.addEventListener('click', () => row.remove());
 
   row.append(nameInput, valueInput, delBtn);
@@ -469,7 +469,7 @@ stepBtn.addEventListener('click', () => {
     commitStep(result);
   } else {
     statusEl.textContent = '';
-    renderStatus('  (정규형 — 더 이상 축약 불가)');
+    renderStatus('  (Normal form — no more reductions)');
   }
 });
 
@@ -493,14 +493,14 @@ autoBtn.addEventListener('click', () => {
     if (autoSteps >= AUTO_MAX_STEPS) {
       state.autoRunning = false;
       updateButtons();
-      renderStatus('  (자동 축약 최대 스텝 도달)');
+      renderStatus('  (Auto-reduce max steps reached)');
       return;
     }
     const result = reduceStep(state.ast);
     if (!result.reduced) {
       state.autoRunning = false;
       updateButtons();
-      renderStatus('  (정규형 — 더 이상 축약 불가)');
+      renderStatus('  (Normal form — no more reductions)');
       return;
     }
     autoSteps++;
@@ -536,7 +536,7 @@ exportPngBtn.addEventListener('click', async () => {
   try {
     await exportPng(renderer, state.ast, { width: w, height: h });
     statusEl.textContent = '';
-    renderStatus('  (PNG 저장 완료)');
+    renderStatus('  (PNG saved)');
   } catch (e) {
     errorEl.textContent = e.message;
   } finally {
@@ -564,11 +564,11 @@ exportGifBtn.addEventListener('click', async () => {
       frameMs: animationDuration(),
       onProgress: (i, total) => {
         statusEl.textContent = '';
-        renderStatus(`  (GIF 생성 중... ${i}/${total})`);
+        renderStatus(`  (Generating GIF... ${i}/${total})`);
       },
     });
     statusEl.textContent = '';
-    renderStatus('  (GIF 저장 완료)');
+    renderStatus('  (GIF saved)');
   } catch (e) {
     errorEl.textContent = e.message;
   } finally {

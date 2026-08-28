@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,54 +10,54 @@
   <header>
     <div class="header-main">
       <h1>Lambda Treemap</h1>
-      <p class="subtitle">람다 대수 식을 트리맵으로 시각화하고 베타 축약을 애니메이션으로 보여줍니다.</p>
-      <p class="article-link">이 표기법의 원문: <a href="https://meliplug.info/articles/math/lambda-treemap/" target="_blank" rel="noopener">Lambda Treemap — meliplug.info</a></p>
+      <p class="subtitle">Visualize lambda calculus expressions as treemaps and animate beta reduction.</p>
+      <p class="article-link">Original article: <a href="https://meliplug.info/articles/math/lambda-treemap/" target="_blank" rel="noopener">Lambda Treemap — meliplug.info</a></p>
     </div>
     <div class="layout-control">
-      <label for="layout-mode">보기</label>
-      <select id="layout-mode" aria-label="레이아웃 모드">
-        <option value="stacked">세로 (기본)</option>
-        <option value="side-by-side">좌우 (입력 ↔ 트리맵)</option>
-        <option value="treemap-only">트리맵만</option>
+      <label for="layout-mode">View</label>
+      <select id="layout-mode" aria-label="Layout mode">
+        <option value="stacked">Stacked (default)</option>
+        <option value="side-by-side">Side-by-side (inputs ↔ treemap)</option>
+        <option value="treemap-only">Treemap only</option>
       </select>
     </div>
   </header>
 
   <main>
     <section id="controls">
-      <input id="expr-input" type="text" placeholder="예: (λx. λy. x) a b — λ 대신 \ 로도 입력 가능 — $이름, $숫자(교회 숫자) 사용 가능" aria-label="람다 대수 식 입력" spellcheck="false" autocapitalize="off">
+      <input id="expr-input" type="text" placeholder="e.g. (λx. λy. x) a b — \ also works — $name, $number (Church numerals)" aria-label="Lambda expression" spellcheck="false" autocapitalize="off">
       <details id="variables-details">
-        <summary>변수 ($이름 치환)</summary>
+        <summary>Variables ($name substitution)</summary>
         <div id="variables-list"></div>
-        <button type="button" id="add-variable-btn" class="var-add">+ 변수 추가</button>
+        <button type="button" id="add-variable-btn" class="var-add">+ Add variable</button>
       </details>
       <details id="color-details">
-        <summary>색상 (변수별 HSL)</summary>
+        <summary>Colors (per-variable HSL)</summary>
         <div id="color-list"></div>
-        <p class="color-hint">현재 식에 등장하는 변수마다 HSL 슬라이더가 생깁니다. <code>초기화</code>로 자동 색(바인딩 해시)으로 돌아갑니다.</p>
+        <p class="color-hint">One HSL row appears per variable in the current expression. <code>Reset</code> returns to the auto color (binding hash).</p>
       </details>
-      <div id="presets" class="presets" aria-label="예시 식">
-        <button type="button" class="preset" data-expr="(λx. λy. x) a b">K 조합자</button>
-        <button type="button" class="preset" data-expr="(λx. x x) (λy. y)">자기 적용</button>
-        <button type="button" class="preset" data-expr="(λx. x x x) (a b)">다중 대입</button>
-        <button type="button" class="preset" data-expr="(λn. λf. λx. f (n f x)) (λf. λx. f x) a b">후속 숫자</button>
-        <button type="button" class="preset" data-expr="(λx. x x) (λx. x x)">오메가</button>
+      <div id="presets" class="presets" aria-label="Example expressions">
+        <button type="button" class="preset" data-expr="(λx. λy. x) a b">K combinator</button>
+        <button type="button" class="preset" data-expr="(λx. x x) (λy. y)">Self application</button>
+        <button type="button" class="preset" data-expr="(λx. x x x) (a b)">Multi-substitution</button>
+        <button type="button" class="preset" data-expr="(λn. λf. λx. f (n f x)) (λf. λx. f x) a b">Successor number</button>
+        <button type="button" class="preset" data-expr="(λx. x x) (λx. x x)">Omega</button>
       </div>
       <div class="buttons speed-control">
-        <button id="parse-btn" type="button">파싱</button>
-        <button id="step-btn" type="button" disabled>한 스텝 축약</button>
-        <button id="auto-btn" type="button" disabled>자동 축약</button>
-        <button id="reset-btn" type="button">초기화</button>
-        <button id="export-png-btn" type="button" disabled>PNG 내보내기</button>
-        <button id="export-gif-btn" type="button" disabled>GIF 내보내기</button>
-        <label for="export-width">내보내기 크기 (px)</label>
-        <input id="export-width" type="number" min="100" max="10000" step="10" value="0" aria-label="내보내기 가로 px">
+        <button id="parse-btn" type="button">Parse</button>
+        <button id="step-btn" type="button" disabled>Step (one reduction)</button>
+        <button id="auto-btn" type="button" disabled>Auto-reduce</button>
+        <button id="reset-btn" type="button">Reset</button>
+        <button id="export-png-btn" type="button" disabled>Export PNG</button>
+        <button id="export-gif-btn" type="button" disabled>Export GIF</button>
+        <label for="export-width">Export size (px)</label>
+        <input id="export-width" type="number" min="100" max="10000" step="10" value="0" aria-label="Export width px">
         <span class="size-x">×</span>
-        <input id="export-height" type="number" min="100" max="10000" step="10" value="0" aria-label="내보내기 세로 px">
-        <label for="speed-slider">애니메이션 속도</label>
+        <input id="export-height" type="number" min="100" max="10000" step="10" value="0" aria-label="Export height px">
+        <label for="speed-slider">Animation speed</label>
         <input id="speed-slider" type="range" min="0" max="2000" step="100" value="700">
         <output id="speed-value" for="speed-slider">700ms</output>
-        <label for="easing-select">보간</label>
+        <label for="easing-select">Easing</label>
         <select id="easing-select"></select>
       </div>
       <p id="status" class="status" aria-live="polite"></p>
