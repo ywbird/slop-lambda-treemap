@@ -3,7 +3,7 @@
 import { parse } from './parser.js';
 import { dumpAst } from './ast.js';
 import { reduceStep } from './reducer.js';
-import { layoutTreemap, exprToSegments, colorForKey, collectBindingsByName } from './treemap.js';
+import { layoutTreemap, exprToSegments, colorForKey, collectBindingsByName, splashToHsl, hslToSplash, formatHsl } from './treemap.js';
 import { TreemapRenderer } from './renderer.js';
 import { ReductionAnimator, EASINGS } from './animator.js';
 import { expandVariables, DEFAULT_VARIABLES, churchNumeralOf } from './variables.js';
@@ -293,40 +293,25 @@ function buildColorRow(name) {
   const swatch = document.createElement('span');
   swatch.className = 'color-swatch';
 
-  const sliders = {};
-  for (const axis of ['h', 's', 'l']) {
-    const label = document.createElement('label');
-    label.style.display = 'flex';
-    label.style.alignItems = 'center';
-    label.style.gap = '4px';
-    label.style.fontSize = '0.7rem';
-    const text = document.createElement('span');
-    text.textContent = axis.toUpperCase();
-    const input = document.createElement('input');
-    input.type = 'range';
-    input.min = axis === 'h' ? '0' : '0';
-    input.max = axis === 'h' ? '359' : '100';
-    input.step = '1';
-    input.dataset.axis = axis;
-    input.setAttribute('aria-label', `${name} ${axis.toUpperCase()}`);
-    label.append(text, input);
-    sliders[axis] = input;
-    row.appendChild(label);
-  }
+  const splashInput = document.createElement('input');
+  splashInput.type = 'text';
+  splashInput.inputMode = 'numeric';
+  splashInput.maxLength = 3;
+  splashInput.className = 'color-splash';
+  splashInput.setAttribute('aria-label', `${name} splash (RGB)`);
+  splashInput.title = '3-digit splash color (RGB): 000=black, 999=white, e.g. 900=red';
 
   const reset = document.createElement('button');
   reset.type = 'button';
   reset.className = 'color-reset';
   reset.textContent = 'Reset';
 
-  row.append(nameEl, swatch, sliders.h.parentElement, sliders.s.parentElement, sliders.l.parentElement, reset);
+  row.append(nameEl, swatch, splashInput, reset);
 
   const syncFromColor = (hslStr) => {
     const m = hslStr.match(/^hsl\((\d+),\s*(\d+)%,\s*(\d+)%\)$/);
     if (!m) return;
-    sliders.h.value = m[1];
-    sliders.s.value = m[2];
-    sliders.l.value = m[3];
+    splashInput.value = hslToSplash(hslStr);
     swatch.style.background = hslStr;
   };
   syncFromColor(effectiveColor(name));
@@ -336,16 +321,17 @@ function buildColorRow(name) {
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => {
       timer = null;
-      const hsl = `hsl(${sliders.h.value}, ${sliders.s.value}%, ${sliders.l.value}%)`;
-      state.colorOverrides.set(name, hsl);
-      swatch.style.background = hsl;
+      const hsl = splashToHsl(splashInput.value.trim());
+      if (!hsl) return;
+      const hslStr = formatHsl(hsl);
+      state.colorOverrides.set(name, hslStr);
+      swatch.style.background = hslStr;
+      splashInput.value = hslToSplash(hslStr);
       render();
       refreshTreemap();
     }, 100);
   };
-  for (const axis of ['h', 's', 'l']) {
-    sliders[axis].addEventListener('input', scheduleRebuild);
-  }
+  splashInput.addEventListener('input', scheduleRebuild);
   reset.addEventListener('click', () => {
     if (timer) {
       clearTimeout(timer);

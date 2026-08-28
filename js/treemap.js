@@ -52,6 +52,62 @@ export function formatHsl({ h, s, l }) {
 }
 
 /**
+ * 색 파싱에 쓰는 표준 변환들. splash 는 3자리 RGB(각 자리 0..9) 형식 —
+ * https://www.todepond.com/lab/splash/ — 000=검정, 999=흰색, 900=빨강 등.
+ * 자리→바이트는 0..9 를 0..255 로 매핑한다 (byte = round(digit * 255 / 9)).
+ */
+function byteToRgb(rByte, gByte, bByte) {
+  rByte = Math.max(0, Math.min(255, rByte));
+  gByte = Math.max(0, Math.min(255, gByte));
+  bByte = Math.max(0, Math.min(255, bByte));
+  const r = rByte / 255;
+  const g = gByte / 255;
+  const b = bByte / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  if (max === min) {
+    return { h: 0, s: 0, l: l * 100 };
+  }
+  const d = max - min;
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  let h;
+  if (max === r) h = (g - b) / d + (g < b ? 6 : 0);
+  else if (max === g) h = (b - r) / d + 2;
+  else h = (r - g) / d + 4;
+  return { h: h * 60, s: s * 100, l: l * 100 };
+}
+
+function rgbToBytes(r, g, b) {
+  const denom = max255 => Math.round(Math.min(255, Math.max(0, max255)) / 255 * 9);
+  return [denom(r), denom(g), denom(b)];
+}
+
+/** 3자리 splash 문자열(예: '909')을 {h, s, l} 로 변환. 형식이 아니면 null. */
+export function splashToHsl(digits) {
+  if (typeof digits !== 'string' || !/^[0-9]{3}$/.test(digits)) return null;
+  const byte = (i) => Math.round(Number(digits[i]) * 255 / 9);
+  return byteToRgb(byte(0), byte(1), byte(2));
+}
+
+/** hsl(h, s%, l%) 문자열을 3자리 splash 문자열로 변환한다. */
+export function hslToSplash(hslStr) {
+  const { h, s, l } = parseHsl(hslStr);
+  const c = (1 - Math.abs(2 * l / 100 - 1)) * (s / 100);
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = l / 100 - c / 2;
+  let r = 0, g = 0, b = 0;
+  if (h < 60) [r, g, b] = [c, x, 0];
+  else if (h < 120) [r, g, b] = [x, c, 0];
+  else if (h < 180) [r, g, b] = [0, c, x];
+  else if (h < 240) [r, g, b] = [0, x, c];
+  else if (h < 300) [r, g, b] = [x, 0, c];
+  else [r, g, b] = [c, 0, x];
+  const [dr, dg, db] = rgbToBytes((r + m) * 255, (g + m) * 255, (b + m) * 255);
+  return `${dr}${dg}${db}`;
+}
+
+/**
  * AST 를 한 번 순회해 각 변수 이름이 어떤 bindingId 들에 묶이는지 모은다.
  * override 적용 시 bindingId → 이름 역방향 조회에 쓰인다.
  * @returns {Map<string, Set<number>>}

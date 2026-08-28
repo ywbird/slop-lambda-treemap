@@ -467,8 +467,9 @@ button:disabled {
 
 .color-row {
   display: grid;
-  grid-template-columns: 70px 22px 1fr 1fr 1fr auto;
+  grid-template-columns: 70px 22px auto auto;
   align-items: center;
+  justify-content: start;
   gap: 8px;
   font-family: ui-monospace, monospace;
   font-size: 0.8rem;
@@ -488,8 +489,16 @@ button:disabled {
   border: 2px solid var(--border);
 }
 
-.color-row input[type='range'] {
-  accent-color: #111111;
+.color-row .color-splash {
+  width: 3ch;
+  text-align: center;
+  font-family: ui-monospace, monospace;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.4ch;
+  padding: 4px 6px;
+  background: var(--bg);
+  border: 2px solid var(--border);
 }
 
 .color-row .color-reset {
