@@ -10,6 +10,9 @@ import {
   findCellByNode,
   collectVarCellsByColorKey,
   exprToSegments,
+  parseHsl,
+  formatHsl,
+  collectBindingsByName,
 } from '../js/treemap.js';
 
 const FULL = { x: 0, y: 0, w: 100, h: 100 };
@@ -309,4 +312,91 @@ test('collectVarCellsByColorKey: 같은 이름 재바인딩(섀도)은 제외', 
   assert.equal(outer.length, 1); // 바깥 x만
   assert.equal(inner.length, 1); // 안쪽 x만
   assert.notEqual(outer[0], inner[0]);
+});
+
+// ---------- 수동 색상 오버라이드 ----------
+
+test('parseHsl/formatHsl: 왕복', () => {
+  for (const str of ['hsl(0, 65%, 55%)', 'hsl(120, 65%, 55%)', 'hsl(359, 100%, 100%)']) {
+    assert.equal(formatHsl(parseHsl(str)), str);
+  }
+});
+
+test('parseHsl: 잘못된 형식은 throw', () => {
+  assert.throws(() => parseHsl('rgb(0,0,0)'));
+  assert.throws(() => parseHsl('hsl(0, 65%, 55%'));
+});
+
+test('formatHsl: hue는 0..360으로 정규화', () => {
+  assert.equal(formatHsl({ h: -30, s: 50, l: 50 }), 'hsl(330, 50%, 50%)');
+  assert.equal(formatHsl({ h: 720, s: 50, l: 50 }), 'hsl(0, 50%, 50%)');
+});
+
+test('collectBindingsByName: 각 이름에 해당하는 bindingId 수집', () => {
+  const ast = parse('λx. x (λy. y x)');
+  const map = collectBindingsByName(ast);
+  assert.ok(map.has('x'));
+  assert.ok(map.has('y'));
+  assert.equal(map.size, 2);
+  assert.equal(map.get('x').size, 1);
+  assert.equal(map.get('y').size, 1);
+  // x 의 bindingId = 바깥 λx
+  assert.ok(map.get('x').has(ast.bindingId));
+  assert.ok(map.get('y').has(ast.body.arg.bindingId));
+});
+
+test('collectBindingsByName: 같은 이름이 두 번 묶이면 bindingId 도 두 개', () => {
+  const ast = parse('λx. x (λx. x)');
+  const map = collectBindingsByName(ast);
+  assert.equal(map.get('x').size, 2);
+});
+
+test('layoutTreemap: override 가 있으면 해당 이름 셀/λ 테두리에 적용', () => {
+  const ast = parse('λx. x y');
+  const overrides = new Map([['x', 'hsl(10, 80%, 50%)']]);
+  const cell = layoutTreemap(ast, FULL, overrides);
+  // λx 의 border 색
+  assert.equal(cell.color, 'hsl(10, 80%, 50%)');
+  // 묶인 x 변수 셀 색 (body.app.func)
+  assert.equal(cell.body.func.color, 'hsl(10, 80%, 50%)');
+  // override 없는 자유 y 는 자동 색 (body.app.arg)
+  assert.equal(cell.body.arg.color, colorForKey('free:y'));
+});
+
+test('layoutTreemap: override 가 없으면 자동으로', () => {
+  const ast = parse('λx. x');
+  const cell = layoutTreemap(ast, FULL);
+  assert.equal(cell.color, colorForKey(ast.bindingId));
+});
+
+test('layoutTreemap: 같은 이름 override 는 이름이 등장하는 모든 binding 에 적용', () => {
+  // x 만 override 지정 — 안쪽 λx 의 border / 변수 도 같은 override 색
+  const ast = parse('λx. x (λx. x)');
+  const overrides = new Map([['x', 'hsl(50, 90%, 50%)']]);
+  const cell = layoutTreemap(ast, FULL, overrides);
+  // 바깥 λx border
+  assert.equal(cell.color, 'hsl(50, 90%, 50%)');
+  // 바깥 x 변수
+  assert.equal(cell.body.func.color, 'hsl(50, 90%, 50%)');
+  // 안쪽 λx border
+  assert.equal(cell.body.arg.color, 'hsl(50, 90%, 50%)');
+  // 안쪽 x 변수
+  assert.equal(cell.body.arg.body.color, 'hsl(50, 90%, 50%)');
+});
+
+test('exprToSegments: override 가 적용된 색으로 세그먼트 색칠', () => {
+  const ast = parse('λx. x y');
+  const overrides = new Map([['x', 'hsl(200, 80%, 50%)']]);
+  const segs = exprToSegments(ast, new Map(), overrides);
+  const xSegs = segs.filter((s) => s.text === 'x');
+  const ySegs = segs.filter((s) => s.text === 'y');
+  assert.ok(xSegs.every((s) => s.color === 'hsl(200, 80%, 50%)'));
+  assert.ok(ySegs.every((s) => s.color === colorForKey('free:y')));
+});
+
+test('exprToSegments: override 없이 호출하면 기존 동작', () => {
+  const ast = parse('λx. x');
+  const segs = exprToSegments(ast);
+  const xSeg = segs.find((s) => s.text === 'x');
+  assert.equal(xSeg.color, colorForKey(ast.bindingId));
 });

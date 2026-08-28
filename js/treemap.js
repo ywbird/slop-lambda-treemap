@@ -36,6 +36,65 @@ export function colorForKey(key) {
 }
 
 /**
+ * hsl(h, s%, l%) 문자열을 {h, s, l} 로 파싱한다.
+ * @param {string} str
+ */
+export function parseHsl(str) {
+  const m = str.match(/^hsl\(\s*(\d+)\s*,\s*(\d+)%\s*,\s*(\d+)%\s*\)$/);
+  if (!m) throw new Error(`hsl 파싱 실패: ${str}`);
+  return { h: Number(m[1]), s: Number(m[2]), l: Number(m[3]) };
+}
+
+/** {h, s, l} → hsl(h, s%, l%) 문자열. h 는 0..360 으로 정규화. */
+export function formatHsl({ h, s, l }) {
+  const wrap = (x, n) => ((x % n) + n) % n;
+  return `hsl(${Math.round(wrap(h, 360))}, ${Math.round(s)}%, ${Math.round(l)}%)`;
+}
+
+/**
+ * AST 를 한 번 순회해 각 변수 이름이 어떤 bindingId 들에 묶이는지 모은다.
+ * override 적용 시 bindingId → 이름 역방향 조회에 쓰인다.
+ * @returns {Map<string, Set<number>>}
+ */
+export function collectBindingsByName(root) {
+  const map = new Map();
+  function walk(node) {
+    if (node.type === 'lambda') {
+      if (!map.has(node.param)) map.set(node.param, new Set());
+      map.get(node.param).add(node.bindingId);
+      walk(node.body);
+    } else if (node.type === 'app') {
+      walk(node.func);
+      walk(node.arg);
+    }
+  }
+  walk(root);
+  return map;
+}
+
+/**
+ * 사용자가 지정한 색이 있으면 그걸, 없으면 자동 색을 돌려준다.
+ * - key 가 'free:NAME' 면 NAME 으로 override 조회
+ * - key 가 숫자(bindingId) 면 bindingsByName 로 이름을 찾아 override 조회
+ * @returns {string} hsl() 색 문자열
+ */
+function resolveColor(key, colorOverrides, bindingsByName) {
+  if (colorOverrides && colorOverrides.size > 0) {
+    if (typeof key === 'string' && key.startsWith(FREE_PREFIX)) {
+      const name = key.slice(FREE_PREFIX.length);
+      if (colorOverrides.has(name)) return colorOverrides.get(name);
+    } else if (typeof key === 'number' && bindingsByName) {
+      for (const [name, ids] of bindingsByName) {
+        if (ids.has(key) && colorOverrides.has(name)) {
+          return colorOverrides.get(name);
+        }
+      }
+    }
+  }
+  return colorForKey(key);
+}
+
+/**
  * 서브트리의 노드 수(면적 가중치). 변수 리프가 1씩 기여하고,
  * 추상화는 래퍼일 뿐 추가 단위가 아니므로 body만 센다.
  * @param {object} node
@@ -89,12 +148,19 @@ function splitRect(rect, ratio, vertically, gap) {
   ];
 }
 
-function layout(node, rect, depth, env) {
+function layout(node, rect, depth, env, opts) {
+  const { colorOverrides, bindingsByName } = opts || {};
   switch (node.type) {
     case 'var': {
       const bindingId = env.get(node.name);
       const colorKey = bindingId !== undefined ? bindingId : FREE_PREFIX + node.name;
-      return { kind: 'var', node, rect, colorKey, color: colorForKey(colorKey) };
+      return {
+        kind: 'var',
+        node,
+        rect,
+        colorKey,
+        color: resolveColor(colorKey, colorOverrides, bindingsByName),
+      };
     }
     case 'lambda': {
       const childEnv = new Map(env);
@@ -106,8 +172,8 @@ function layout(node, rect, depth, env) {
         node,
         rect,
         bindingId: node.bindingId,
-        color: colorForKey(node.bindingId),
-        body: layout(node.body, insetRect(rect, cellGap(rect) * 2), depth, childEnv),
+        color: resolveColor(node.bindingId, colorOverrides, bindingsByName),
+        body: layout(node.body, insetRect(rect, cellGap(rect) * 2), depth, childEnv, opts),
       };
     }
     case 'app': {
@@ -124,8 +190,8 @@ function layout(node, rect, depth, env) {
         kind: 'app',
         node,
         rect,
-        func: layout(node.func, funcRect, depth + 1, env),
-        arg: layout(node.arg, argRect, depth + 1, env),
+        func: layout(node.func, funcRect, depth + 1, env, opts),
+        arg: layout(node.arg, argRect, depth + 1, env, opts),
       };
     }
     default:
@@ -141,14 +207,20 @@ function layout(node, rect, depth, env) {
  * 세그먼트를 이어 붙이면 exprToString과 같은 문자열이 된다.
  * @param {object} node
  * @param {Map<string, number>} env
+ * @param {Map<string,string>} [colorOverrides] 이름 → hsl 색
+ * @param {Map<string,Set<number>>} [bindingsByName] 이름 → 묶인 bindingId 집합
  * @returns {{text: string, color?: string}[]}
  */
-export function exprToSegments(node, env = new Map()) {
+export function exprToSegments(node, env = new Map(), colorOverrides, bindingsByName) {
+  // bindingsByName 없으면 입력 노드에서 직접 수집 (서브트리만 다룰 때도 안전).
+  if (!bindingsByName) {
+    bindingsByName = collectBindingsByName(node);
+  }
   switch (node.type) {
     case 'var': {
       const bindingId = env.get(node.name);
       const key = bindingId !== undefined ? bindingId : FREE_PREFIX + node.name;
-      return [{ text: node.name, color: colorForKey(key) }];
+      return [{ text: node.name, color: resolveColor(key, colorOverrides, bindingsByName) }];
     }
     case 'lambda': {
       const segments = [{ text: 'λ' }];
@@ -156,7 +228,10 @@ export function exprToSegments(node, env = new Map()) {
       let current = node;
       while (true) {
         scope.set(current.param, current.bindingId);
-        segments.push({ text: current.param, color: colorForKey(current.bindingId) });
+        segments.push({
+          text: current.param,
+          color: resolveColor(current.bindingId, colorOverrides, bindingsByName),
+        });
         if (current.body.type === 'lambda') {
           segments.push({ text: ' ' });
           current = current.body;
@@ -165,20 +240,30 @@ export function exprToSegments(node, env = new Map()) {
         }
       }
       segments.push({ text: '. ' });
-      segments.push(...exprToSegments(current.body, scope));
+      segments.push(...exprToSegments(current.body, scope, colorOverrides, bindingsByName));
       return segments;
     }
     case 'app': {
       const segments = [];
       if (node.func.type === 'lambda') {
-        segments.push({ text: '(' }, ...exprToSegments(node.func, env), { text: ') ' });
+        segments.push(
+          { text: '(' },
+          ...exprToSegments(node.func, env, colorOverrides, bindingsByName),
+          { text: ') ' }
+        );
       } else {
-        segments.push(...exprToSegments(node.func, env), { text: ' ' });
+        segments.push(...exprToSegments(node.func, env, colorOverrides, bindingsByName), {
+          text: ' ',
+        });
       }
       if (node.arg.type === 'var') {
-        segments.push(...exprToSegments(node.arg, env));
+        segments.push(...exprToSegments(node.arg, env, colorOverrides, bindingsByName));
       } else {
-        segments.push({ text: '(' }, ...exprToSegments(node.arg, env), { text: ')' });
+        segments.push(
+          { text: '(' },
+          ...exprToSegments(node.arg, env, colorOverrides, bindingsByName),
+          { text: ')' }
+        );
       }
       return segments;
     }
@@ -191,13 +276,15 @@ export function exprToSegments(node, env = new Map()) {
  * AST를 트리맵 레이아웃 트리로 변환한다.
  * @param {object} root AST 루트
  * @param {{x: number, y: number, w: number, h: number}} rect 전체 영역
+ * @param {Map<string,string>} [colorOverrides] 이름 → hsl 색 (없으면 자동)
  * @returns {object} kind별 셀 트리:
  *   var:    { kind, node, rect, colorKey, color }
  *   lambda: { kind, node, rect, bindingId, color, body }
  *   app:    { kind, node, rect, func, arg }
  */
-export function layoutTreemap(root, rect) {
-  return layout(root, rect, 0, new Map());
+export function layoutTreemap(root, rect, colorOverrides) {
+  const bindingsByName = collectBindingsByName(root);
+  return layout(root, rect, 0, new Map(), { colorOverrides, bindingsByName });
 }
 
 /**
