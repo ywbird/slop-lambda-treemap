@@ -10,9 +10,6 @@ import { buildFrameContext, computeFrame } from './animator.js';
 import { TreemapRenderer } from './renderer.js';
 
 const DEFAULT_MAX_FRAMES = 60;
-// 한 변이당 보간 프레임 수. e=1/4, 2/4, 3/4, 1 — 마지막은 다음 스텝의 정적 시작과
-// 겹치므로 연속 재생 시 점프 없이 이어진다.
-const SUB_FRAMES_PER_STEP = 4;
 
 function timestamp() {
   const d = new Date();
@@ -133,7 +130,9 @@ export function paddedBounds(w, h) {
  * @param {number} [options.width]          출력 캔버스 가로 px (기본 renderer.w)
  * @param {number} [options.height]         출력 캔버스 세로 px (기본 renderer.h)
  * @param {number} [options.maxFrames=60]   비정규형(예: 오메가)일 때 캡
- * @param {number} [options.frameMs=700]    한 보간 프레임당 ms (스피드 슬라이더 값)
+ * @param {number} [options.fps=10]         샘플링 밀도(부드러움) — 스텝 재생 시간은 바꾸지 않는다
+ * @param {number} [options.animationMs=700] 스텝 재생 시간(속도) ms — 스피드 슬라이더 값
+ * @param {number} [options.pauseMs=400]    각 축약 후 settled 상태에서 멈추는 시간 ms
  * @param {(i:number,total:number)=>void} [options.onProgress]
  */
 export function exportGif({
@@ -142,7 +141,9 @@ export function exportGif({
   width,
   height,
   maxFrames = DEFAULT_MAX_FRAMES,
-  frameMs = 700,
+  fps = 10,
+  animationMs = 700,
+  pauseMs = 400,
   onProgress,
 }) {
   const w = width ?? renderer.w;
@@ -154,9 +155,14 @@ export function exportGif({
 
   const { history } = reduceAll(ast, { maxSteps: maxFrames });
   const stepCount = Math.max(0, history.length - 1);
-  const subFrames = SUB_FRAMES_PER_STEP;
-  const totalFrames = 1 + stepCount * subFrames;
-  const delayMs = Math.max(20, Math.round(frameMs));
+  // FPS 는 "부드러움"(보간 샘플 밀도)이고, animationMs 는 "속도"(스텝 재생 시간).
+  // 스텝당 프레임 수 = 둘의 곱 — 재생 시간(animationMs)은 FPS 와 무관하게 일정하다.
+  const delayMs = Math.max(20, Math.round(1000 / fps));
+  const framesPerStep = Math.max(1, Math.round((animationMs / 1000) * fps));
+  // ponytail: pauseMs 를 delayMs 로 나눈 만큼 프레임을 중복해 dwell 을 만든다 —
+  // pause 지속시간은 FPS 에 무관하게 대략 일정하게 유지된다. 근사 오차는 ±1프레임.
+  const holdFrames = pauseMs > 0 ? Math.max(0, Math.round(pauseMs / delayMs)) : 0;
+  const totalFrames = 1 + stepCount * (framesPerStep + holdFrames);
 
   const GIF = /** @type {any} */ (typeof window !== 'undefined' ? window.GIF : null);
   if (!GIF) {
@@ -180,9 +186,12 @@ export function exportGif({
   // ImageData / CanvasRenderingContext2D / HTMLCanvasElement 어느 것도 아니다.
   // ImageData 로 추출해서 넘기면 첫 분기에서 받아 인코딩한다.
   gif.addFrame(ctx.getImageData(0, 0, w, h), { delay: delayMs });
-  onProgress?.(1, totalFrames);
+  let frameIndex = 1;
+  onProgress?.(frameIndex, totalFrames);
 
-  // 변이 프레임: 각 (old, new) 쌍에서 subFrames 개 만큼 보간 샘플.
+  // 변이 프레임: 각 (old, new) 쌍에서 framesPerStep 개 만큼 보간 샘플.
+  // 마지막 샘플(e=1)은 축약이 끝난 상태이므로, 스텝 사이 pause 만큼 그 상태를
+  // 유지하는 dwell 프레임을 덧붙여 다음 변이가 시작하기 전 잠시 멈춘다.
   for (let i = 0; i < stepCount; i++) {
     const oldAst = history[i];
     const newAst = history[i + 1];
@@ -190,12 +199,19 @@ export function exportGif({
     if (!redex) continue;
     const ctxFrame = buildFrameContext({ oldAst, newAst, redex, bounds });
     if (!ctxFrame) continue;
-    for (let k = 0; k < subFrames; k++) {
-      const e = (k + 1) / subFrames;
+    let settled = null;
+    for (let k = 0; k < framesPerStep; k++) {
+      const e = (k + 1) / framesPerStep;
       const { tree, ghosts } = computeFrame(ctxFrame, e);
       offRenderer.renderMorph(tree, ghosts);
       gif.addFrame(ctx.getImageData(0, 0, w, h), { delay: delayMs });
-      onProgress?.(1 + i * subFrames + k + 1, totalFrames);
+      onProgress?.(++frameIndex, totalFrames);
+      if (k === framesPerStep - 1) settled = { tree, ghosts };
+    }
+    for (let h = 0; h < holdFrames; h++) {
+      offRenderer.renderMorph(settled.tree, settled.ghosts);
+      gif.addFrame(ctx.getImageData(0, 0, w, h), { delay: delayMs });
+      onProgress?.(++frameIndex, totalFrames);
     }
   }
 

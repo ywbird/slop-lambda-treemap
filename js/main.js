@@ -27,6 +27,7 @@ const exportGifBtn = document.getElementById('export-gif-btn');
 const exportWidthInput = document.getElementById('export-width');
 const exportHeightInput = document.getElementById('export-height');
 const exportFpsInput = document.getElementById('export-fps');
+const exportPauseInput = document.getElementById('export-pause');
 const exportPreviewCanvas = document.getElementById('export-preview');
 const exportResultEl = document.getElementById('export-result');
 const exportResultImg = document.getElementById('export-result-img');
@@ -602,7 +603,9 @@ exportGifBtn.addEventListener('click', async () => {
       ast: state.ast,
       width: w,
       height: h,
-      frameMs: 1000 / fps,
+      fps,
+      animationMs: animationDuration(),
+      pauseMs: clampPause(Number(exportPauseInput.value)),
       onProgress: (i, total) => {
         statusEl.textContent = '';
         renderStatus(`  (Generating GIF... ${i}/${total})`);
@@ -662,6 +665,10 @@ function clampFps(v) {
   return Number.isFinite(v) ? Math.max(1, Math.min(60, v)) : 10;
 }
 
+function clampPause(v) {
+  return Number.isFinite(v) ? Math.max(0, Math.min(5000, v)) : 400;
+}
+
 document.getElementById('export-result-clear').addEventListener('click', clearExportResult);
 
 let sizeDebounceTimer = null;
@@ -676,6 +683,7 @@ function schedulePreviewRefresh() {
 exportWidthInput.addEventListener('input', schedulePreviewRefresh);
 exportHeightInput.addEventListener('input', schedulePreviewRefresh);
 exportFpsInput.addEventListener('input', schedulePreviewRefresh);
+exportPauseInput.addEventListener('input', schedulePreviewRefresh);
 
 for (const tabId of ['tab-main', 'tab-vars', 'tab-colors', 'tab-export']) {
   document.getElementById(tabId).addEventListener('change', () => {
