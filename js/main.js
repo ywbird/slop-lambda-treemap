@@ -7,7 +7,7 @@ import { layoutTreemap, exprToSegments, colorForKey, collectBindingsByName } fro
 import { TreemapRenderer } from './renderer.js';
 import { ReductionAnimator, EASINGS } from './animator.js';
 import { expandVariables, DEFAULT_VARIABLES, churchNumeralOf } from './variables.js';
-import { exportPng, exportGif } from './exporter.js';
+import { exportPng, exportGif, renderPreview } from './exporter.js';
 
 const AUTO_MAX_STEPS = 200;
 
@@ -26,6 +26,10 @@ const exportPngBtn = document.getElementById('export-png-btn');
 const exportGifBtn = document.getElementById('export-gif-btn');
 const exportWidthInput = document.getElementById('export-width');
 const exportHeightInput = document.getElementById('export-height');
+const exportPreviewCanvas = document.getElementById('export-preview');
+const gifProgressEl = document.getElementById('gif-progress');
+const gifProgressTextEl = gifProgressEl.querySelector('.gif-progress-text');
+const gifProgressFillEl = gifProgressEl.querySelector('.gif-bar-fill');
 const colorListEl = document.getElementById('color-list');
 const statusEl = document.getElementById('status');
 const errorEl = document.getElementById('error');
@@ -145,12 +149,14 @@ function updateButtons() {
 function refreshTreemap() {
   if (!state.ast) {
     renderer.clear();
+    updateExportPreview(); // 캔버스 비우고 크기 동기화
     return;
   }
   const { w, h } = renderer.getSize();
   renderer.setLayout(
     layoutTreemap(state.ast, { x: 0, y: 0, w, h }, state.colorOverrides)
   );
+  updateExportPreview();
 }
 
 /** 슬라이더로 조절되는 애니메이션 지속시간(ms). */
@@ -189,6 +195,31 @@ function readExportSize() {
 function syncExportSizeInputs() {
   exportWidthInput.value = renderer.w;
   exportHeightInput.value = renderer.h;
+}
+
+/**
+ * Exporting 탭의 미리보기 캔버스를 현재 AST + 사용자 지정 크기로 다시 그린다.
+ * state.ast 가 없으면 비운다. width/height 입력이 잘못되면 readExportSize 가
+ * 현재 캔버스 크기로 폴백하므로 그대로 사용한다.
+ */
+function updateExportPreview() {
+  const { w, h } = readExportSize();
+  if (exportPreviewCanvas.width !== w) exportPreviewCanvas.width = w;
+  if (exportPreviewCanvas.height !== h) exportPreviewCanvas.height = h;
+  const ctx = exportPreviewCanvas.getContext('2d');
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, w, h);
+  if (!state.ast) return;
+  renderPreview(exportPreviewCanvas, state.ast, state.colorOverrides, w, h);
+}
+
+/** GIF 진행률 UI 를 갱신한다. 콜백에서 (i, total) 형식으로 호출. */
+function setGifProgress(i, total, label) {
+  gifProgressEl.hidden = false;
+  const pct = total > 0 ? Math.round((i / total) * 100) : 0;
+  gifProgressTextEl.textContent = label ?? `Generating GIF… ${i} / ${total}`;
+  gifProgressFillEl.style.width = `${pct}%`;
 }
 
 /**
@@ -534,9 +565,14 @@ exportPngBtn.addEventListener('click', async () => {
   state.exporting = true;
   errorEl.textContent = '';
   try {
-    await exportPng(renderer, state.ast, { width: w, height: h });
+    await exportPng(renderer, state.ast, {
+      width: w,
+      height: h,
+      colorOverrides: state.colorOverrides,
+    });
     statusEl.textContent = '';
     renderStatus('  (PNG saved)');
+    setGifProgress(1, 1, 'PNG saved');
   } catch (e) {
     errorEl.textContent = e.message;
   } finally {
@@ -565,10 +601,12 @@ exportGifBtn.addEventListener('click', async () => {
       onProgress: (i, total) => {
         statusEl.textContent = '';
         renderStatus(`  (Generating GIF... ${i}/${total})`);
+        setGifProgress(i, total);
       },
     });
     statusEl.textContent = '';
     renderStatus('  (GIF saved)');
+    setGifProgress(1, 1, 'GIF saved');
   } catch (e) {
     errorEl.textContent = e.message;
   } finally {
@@ -585,3 +623,40 @@ window.addEventListener('resize', () => {
 syncExportSizeInputs();
 applyLayoutMode(); // 초기 클래스 적용 + 사이즈 동기화
 updateButtons();
+updateExportPreview(); // 초기 미리보기 (state.ast 없으면 비움)
+
+// ----- 내보내기 탭 이벤트 -----
+
+/**
+ * 미리보기와 GIF 진행률은 "내보내기 탭이 활성" + "현재 size" 일 때만 의미가 있다.
+ * 탭이 바뀌거나 size 입력이 바뀌면 미리보기를 다시 그리고 진행률 UI 를 리셋한다.
+ */
+function resetGifProgressUi() {
+  gifProgressEl.hidden = true;
+  gifProgressTextEl.textContent = 'Idle';
+  gifProgressFillEl.style.width = '0%';
+}
+
+let sizeDebounceTimer = null;
+function schedulePreviewRefresh() {
+  resetGifProgressUi();
+  if (sizeDebounceTimer) clearTimeout(sizeDebounceTimer);
+  sizeDebounceTimer = setTimeout(() => {
+    sizeDebounceTimer = null;
+    updateExportPreview();
+  }, 150);
+}
+exportWidthInput.addEventListener('input', schedulePreviewRefresh);
+exportHeightInput.addEventListener('input', schedulePreviewRefresh);
+
+for (const tabId of ['tab-main', 'tab-vars', 'tab-colors', 'tab-export']) {
+  document.getElementById(tabId).addEventListener('change', () => {
+    if (document.getElementById('tab-export').checked) {
+      // 탭이 막혀 있다가 다시 보일 때 — 미리보기를 갱신한다.
+      updateExportPreview();
+    } else {
+      // 다른 탭으로 떠나면 진행률 UI 를 리셋한다.
+      resetGifProgressUi();
+    }
+  });
+}

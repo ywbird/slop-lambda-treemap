@@ -69,6 +69,7 @@
             <p class="color-hint">One HSL row appears per variable in the current expression. <code>Reset</code> returns to the auto color (binding hash).</p>
           </div>
           <div class="tab-panel" id="panel-export" role="tabpanel">
+            <canvas id="export-preview" aria-label="Export preview"></canvas>
             <div class="buttons">
               <button id="export-png-btn" type="button" disabled>Export PNG</button>
               <button id="export-gif-btn" type="button" disabled>Export GIF</button>
@@ -78,6 +79,10 @@
               <input id="export-width" type="number" min="100" max="10000" step="10" value="0" aria-label="Export width px">
               <span class="size-x">×</span>
               <input id="export-height" type="number" min="100" max="10000" step="10" value="0" aria-label="Export height px">
+            </div>
+            <div id="gif-progress" hidden>
+              <div class="gif-progress-text">Idle</div>
+              <div class="gif-bar"><div class="gif-bar-fill"></div></div>
             </div>
           </div>
         </div>

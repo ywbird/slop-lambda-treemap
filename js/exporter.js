@@ -37,13 +37,13 @@ function downloadBlob(blob, filename) {
   URL.revokeObjectURL(url);
 }
 
-export async function exportPng(renderer, ast, { width, height } = {}) {
+export async function exportPng(renderer, ast, { width, height, colorOverrides } = {}) {
   const w = width ?? renderer.w;
   const h = height ?? renderer.h;
   if (w < 2 || h < 2) throw new Error('캔버스 크기가 너무 작아 PNG 를 만들 수 없습니다.');
 
-  const { surface, ctx, offRenderer } = buildExportSurface(w, h);
-  offRenderer.setLayout(layoutTreemap(ast, paddedBounds(w, h)));
+  const { surface, offRenderer } = buildExportSurface(w, h);
+  offRenderer.setLayout(layoutTreemap(ast, paddedBounds(w, h), colorOverrides));
 
   const blob = await new Promise((resolve, reject) =>
     surface.convertToBlob
@@ -56,6 +56,26 @@ export async function exportPng(renderer, ast, { width, height } = {}) {
         )
   );
   downloadBlob(blob, `lambda-treemap-${w}x${h}-${timestamp()}.png`);
+}
+
+/**
+ * 현재 AST 의 정적 모습을 사용자 지정 (W, H) 크기로 오프스크린에 렌더한 뒤
+ * targetCanvas 로 그대로 blit 한다. PNG/GIF 와 같은 surface + layout 코드이지만
+ * 다운로드 대신 미리보기 캔버스에 결과를 그대로 그려 넣는다.
+ * targetCanvas.width/height 는 호출 전에 (W, H) 와 같거나 큰 값이어야 한다.
+ *
+ * @param {HTMLCanvasElement} targetCanvas 미리보기용 보일 캔버스
+ * @param {object} ast
+ * @param {Map<string,string>} [colorOverrides]
+ * @param {number} w
+ * @param {number} h
+ */
+export function renderPreview(targetCanvas, ast, colorOverrides, w, h) {
+  const { surface, offRenderer } = buildExportSurface(w, h);
+  offRenderer.setLayout(layoutTreemap(ast, paddedBounds(w, h), colorOverrides));
+  const targetCtx = targetCanvas.getContext('2d');
+  targetCtx.clearRect(0, 0, w, h);
+  targetCtx.drawImage(surface, 0, 0, w, h);
 }
 
 // ----- 오프스크린 캔버스 -----
