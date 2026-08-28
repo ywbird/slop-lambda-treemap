@@ -140,6 +140,97 @@ main.layout-treemap-only #treemap-canvas {
   gap: 12px;
 }
 
+/* ----- 탭: 메인 / 변수 / 색상 / 내보내기 ----- */
+
+.tabs {
+  background: var(--panel);
+  border: 3px solid var(--border);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+}
+
+.tabs input[type='radio'] {
+  display: none;
+}
+
+.tab-nav {
+  display: flex;
+  border-bottom: 3px solid var(--border);
+  background: var(--bg);
+}
+
+.tab-nav label {
+  flex: 1;
+  text-align: center;
+  padding: 8px 10px;
+  font-weight: 800;
+  font-size: 0.85rem;
+  cursor: pointer;
+  user-select: none;
+  border-right: 3px solid var(--border);
+}
+
+.tab-nav label:last-of-type {
+  border-right: none;
+}
+
+.tab-nav label:hover {
+  background: var(--panel);
+}
+
+.tabs:has(#tab-main:checked)   label[for='tab-main'],
+.tabs:has(#tab-vars:checked)   label[for='tab-vars'],
+.tabs:has(#tab-colors:checked) label[for='tab-colors'],
+.tabs:has(#tab-export:checked) label[for='tab-export'] {
+  background: var(--yellow);
+}
+
+.tab-panels {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tab-panel {
+  display: none;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tabs:has(#tab-main:checked)   #panel-main,
+.tabs:has(#tab-vars:checked)   #panel-vars,
+.tabs:has(#tab-colors:checked) #panel-colors,
+.tabs:has(#tab-export:checked) #panel-export {
+  display: flex;
+}
+
+.size-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.size-row input[type='number'] {
+  font: 700 0.85rem ui-monospace, monospace;
+  padding: 4px 8px;
+  background: var(--bg);
+  color: var(--text);
+  border: 2px solid var(--border);
+  border-radius: 0;
+  width: 90px;
+  text-align: right;
+}
+
+.size-row .size-x {
+  font-weight: 800;
+  color: var(--muted);
+}
+
 #expr-input {
   font: 700 1rem ui-monospace, monospace;
   padding: 12px 14px;

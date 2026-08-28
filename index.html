@@ -25,41 +25,64 @@
 
   <main>
     <section id="controls">
-      <input id="expr-input" type="text" placeholder="e.g. (λx. λy. x) a b — \ also works — $name, $number (Church numerals)" aria-label="Lambda expression" spellcheck="false" autocapitalize="off">
-      <details id="variables-details">
-        <summary>Variables ($name substitution)</summary>
-        <div id="variables-list"></div>
-        <button type="button" id="add-variable-btn" class="var-add">+ Add variable</button>
-      </details>
-      <details id="color-details">
-        <summary>Colors (per-variable HSL)</summary>
-        <div id="color-list"></div>
-        <p class="color-hint">One HSL row appears per variable in the current expression. <code>Reset</code> returns to the auto color (binding hash).</p>
-      </details>
-      <div id="presets" class="presets" aria-label="Example expressions">
-        <button type="button" class="preset" data-expr="(λx. λy. x) a b">K combinator</button>
-        <button type="button" class="preset" data-expr="(λx. x x) (λy. y)">Self application</button>
-        <button type="button" class="preset" data-expr="(λx. x x x) (a b)">Multi-substitution</button>
-        <button type="button" class="preset" data-expr="(λn. λf. λx. f (n f x)) (λf. λx. f x) a b">Successor number</button>
-        <button type="button" class="preset" data-expr="(λx. x x) (λx. x x)">Omega</button>
+      <div class="tabs">
+        <div class="tab-nav" role="tablist">
+          <input type="radio" name="control-tab" id="tab-main" checked>
+          <label for="tab-main" role="tab">Main</label>
+          <input type="radio" name="control-tab" id="tab-vars">
+          <label for="tab-vars" role="tab">Variables</label>
+          <input type="radio" name="control-tab" id="tab-colors">
+          <label for="tab-colors" role="tab">Colors</label>
+          <input type="radio" name="control-tab" id="tab-export">
+          <label for="tab-export" role="tab">Exporting</label>
+        </div>
+        <div class="tab-panels">
+          <div class="tab-panel" id="panel-main" role="tabpanel">
+            <input id="expr-input" type="text" placeholder="e.g. (λx. λy. x) a b — \ also works — $name, $number (Church numerals)" aria-label="Lambda expression" spellcheck="false" autocapitalize="off">
+            <div id="presets" class="presets" aria-label="Example expressions">
+              <button type="button" class="preset" data-expr="(λx. λy. x) a b">K combinator</button>
+              <button type="button" class="preset" data-expr="(λx. x x) (λy. y)">Self application</button>
+              <button type="button" class="preset" data-expr="(λx. x x x) (a b)">Multi-substitution</button>
+              <button type="button" class="preset" data-expr="(λn. λf. λx. f (n f x)) (λf. λx. f x) a b">Successor number</button>
+              <button type="button" class="preset" data-expr="(λx. x x) (λx. x x)">Omega</button>
+            </div>
+            <div class="buttons">
+              <button id="parse-btn" type="button">Parse</button>
+              <button id="step-btn" type="button" disabled>Step (one reduction)</button>
+              <button id="auto-btn" type="button" disabled>Auto-reduce</button>
+              <button id="reset-btn" type="button">Reset</button>
+            </div>
+            <div class="speed-control">
+              <label for="speed-slider">Animation speed</label>
+              <input id="speed-slider" type="range" min="0" max="2000" step="100" value="700">
+              <output id="speed-value" for="speed-slider">700ms</output>
+              <label for="easing-select">Easing</label>
+              <select id="easing-select"></select>
+            </div>
+          </div>
+          <div class="tab-panel" id="panel-vars" role="tabpanel">
+            <div id="variables-list"></div>
+            <button type="button" id="add-variable-btn" class="var-add">+ Add variable</button>
+          </div>
+          <div class="tab-panel" id="panel-colors" role="tabpanel">
+            <div id="color-list"></div>
+            <p class="color-hint">One HSL row appears per variable in the current expression. <code>Reset</code> returns to the auto color (binding hash).</p>
+          </div>
+          <div class="tab-panel" id="panel-export" role="tabpanel">
+            <div class="buttons">
+              <button id="export-png-btn" type="button" disabled>Export PNG</button>
+              <button id="export-gif-btn" type="button" disabled>Export GIF</button>
+            </div>
+            <div class="size-row">
+              <label for="export-width">Export size (px)</label>
+              <input id="export-width" type="number" min="100" max="10000" step="10" value="0" aria-label="Export width px">
+              <span class="size-x">×</span>
+              <input id="export-height" type="number" min="100" max="10000" step="10" value="0" aria-label="Export height px">
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="buttons speed-control">
-        <button id="parse-btn" type="button">Parse</button>
-        <button id="step-btn" type="button" disabled>Step (one reduction)</button>
-        <button id="auto-btn" type="button" disabled>Auto-reduce</button>
-        <button id="reset-btn" type="button">Reset</button>
-        <button id="export-png-btn" type="button" disabled>Export PNG</button>
-        <button id="export-gif-btn" type="button" disabled>Export GIF</button>
-        <label for="export-width">Export size (px)</label>
-        <input id="export-width" type="number" min="100" max="10000" step="10" value="0" aria-label="Export width px">
-        <span class="size-x">×</span>
-        <input id="export-height" type="number" min="100" max="10000" step="10" value="0" aria-label="Export height px">
-        <label for="speed-slider">Animation speed</label>
-        <input id="speed-slider" type="range" min="0" max="2000" step="100" value="700">
-        <output id="speed-value" for="speed-slider">700ms</output>
-        <label for="easing-select">Easing</label>
-        <select id="easing-select"></select>
-      </div>
+      <!-- status / error live outside the tabs so they're visible regardless of which tab is active -->
       <p id="status" class="status" aria-live="polite"></p>
       <p id="error" class="error" aria-live="polite"></p>
     </section>
