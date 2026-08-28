@@ -148,7 +148,7 @@ export function exportGif({
   const h = height ?? renderer.h;
   if (w < 2 || h < 2) throw new Error('캔버스 크기가 너무 작아 GIF 를 만들 수 없습니다.');
 
-  const { surface, offRenderer } = buildExportSurface(w, h);
+  const { surface, ctx, offRenderer } = buildExportSurface(w, h);
   const bounds = paddedBounds(w, h);
 
   const { history } = reduceAll(ast, { maxSteps: maxFrames });
@@ -175,7 +175,10 @@ export function exportGif({
 
   // 첫 프레임: 초기 AST 의 정적 모습.
   offRenderer.setLayout(layoutTreemap(history[0], bounds));
-  gif.addFrame(surface, { delay: delayMs, copy: true });
+  // ponytail: gif.js 의 addFrame 은 OffscreenCanvas 를 인식 못한다 — instanceof
+  // ImageData / CanvasRenderingContext2D / HTMLCanvasElement 어느 것도 아니다.
+  // ImageData 로 추출해서 넘기면 첫 분기에서 받아 인코딩한다.
+  gif.addFrame(ctx.getImageData(0, 0, w, h), { delay: delayMs });
   onProgress?.(1, totalFrames);
 
   // 변이 프레임: 각 (old, new) 쌍에서 subFrames 개 만큼 보간 샘플.
@@ -190,7 +193,7 @@ export function exportGif({
       const e = (k + 1) / subFrames;
       const { tree, ghosts } = computeFrame(ctxFrame, e);
       offRenderer.renderMorph(tree, ghosts);
-      gif.addFrame(surface, { delay: delayMs, copy: true });
+      gif.addFrame(ctx.getImageData(0, 0, w, h), { delay: delayMs });
       onProgress?.(1 + i * subFrames + k + 1, totalFrames);
     }
   }
