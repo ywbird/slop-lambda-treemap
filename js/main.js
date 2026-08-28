@@ -26,7 +26,10 @@ const exportPngBtn = document.getElementById('export-png-btn');
 const exportGifBtn = document.getElementById('export-gif-btn');
 const exportWidthInput = document.getElementById('export-width');
 const exportHeightInput = document.getElementById('export-height');
+const exportFpsInput = document.getElementById('export-fps');
 const exportPreviewCanvas = document.getElementById('export-preview');
+const exportResultEl = document.getElementById('export-result');
+const exportResultImg = document.getElementById('export-result-img');
 const gifProgressEl = document.getElementById('gif-progress');
 const gifProgressTextEl = gifProgressEl.querySelector('.gif-progress-text');
 const gifProgressFillEl = gifProgressEl.querySelector('.gif-bar-fill');
@@ -565,11 +568,12 @@ exportPngBtn.addEventListener('click', async () => {
   state.exporting = true;
   errorEl.textContent = '';
   try {
-    await exportPng(renderer, state.ast, {
+    const blob = await exportPng(renderer, state.ast, {
       width: w,
       height: h,
       colorOverrides: state.colorOverrides,
     });
+    showExportResult(blob);
     statusEl.textContent = '';
     renderStatus('  (PNG saved)');
     setGifProgress(1, 1, 'PNG saved');
@@ -592,18 +596,20 @@ exportGifBtn.addEventListener('click', async () => {
   errorEl.textContent = '';
   updateButtons();
   try {
-    await exportGif({
+    const fps = clampFps(Number(exportFpsInput.value));
+    const blob = await exportGif({
       renderer,
       ast: state.ast,
       width: w,
       height: h,
-      frameMs: animationDuration(),
+      frameMs: 1000 / fps,
       onProgress: (i, total) => {
         statusEl.textContent = '';
         renderStatus(`  (Generating GIF... ${i}/${total})`);
         setGifProgress(i, total);
       },
     });
+    showExportResult(blob);
     statusEl.textContent = '';
     renderStatus('  (GIF saved)');
     setGifProgress(1, 1, 'GIF saved');
@@ -635,7 +641,28 @@ function resetGifProgressUi() {
   gifProgressEl.hidden = true;
   gifProgressTextEl.textContent = 'Idle';
   gifProgressFillEl.style.width = '0%';
+  clearExportResult();
 }
+
+function showExportResult(blob) {
+  const oldUrl = exportResultImg.src;
+  exportResultImg.src = URL.createObjectURL(blob);
+  if (oldUrl) URL.revokeObjectURL(oldUrl);
+  exportResultEl.hidden = false;
+}
+
+function clearExportResult() {
+  if (exportResultEl.hidden) return;
+  if (exportResultImg.src) URL.revokeObjectURL(exportResultImg.src);
+  exportResultImg.removeAttribute('src');
+  exportResultEl.hidden = true;
+}
+
+function clampFps(v) {
+  return Number.isFinite(v) ? Math.max(1, Math.min(60, v)) : 10;
+}
+
+document.getElementById('export-result-clear').addEventListener('click', clearExportResult);
 
 let sizeDebounceTimer = null;
 function schedulePreviewRefresh() {
@@ -648,6 +675,7 @@ function schedulePreviewRefresh() {
 }
 exportWidthInput.addEventListener('input', schedulePreviewRefresh);
 exportHeightInput.addEventListener('input', schedulePreviewRefresh);
+exportFpsInput.addEventListener('input', schedulePreviewRefresh);
 
 for (const tabId of ['tab-main', 'tab-vars', 'tab-colors', 'tab-export']) {
   document.getElementById(tabId).addEventListener('change', () => {

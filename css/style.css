@@ -303,6 +303,36 @@ main.layout-treemap-only #treemap-canvas {
   flex-wrap: wrap;
 }
 
+#export-result {
+  position: relative;
+  display: inline-block;
+}
+
+#export-result[hidden] {
+  display: none;
+}
+
+#export-result-img {
+  max-width: 100%;
+  border: 2px solid var(--border);
+}
+
+#export-result-clear {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  font-size: 1.1rem;
+  line-height: 1;
+  border-radius: 0;
+  border: 2px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+}
+
 button {
   font: 700 0.95rem system-ui, sans-serif;
   padding: 8px 16px;

@@ -70,6 +70,10 @@
           </div>
           <div class="tab-panel" id="panel-export" role="tabpanel">
             <canvas id="export-preview" aria-label="Export preview"></canvas>
+            <div id="export-result" hidden>
+              <img id="export-result-img" alt="Last export">
+              <button type="button" id="export-result-clear" aria-label="Clear last export">×</button>
+            </div>
             <div class="buttons">
               <button id="export-png-btn" type="button" disabled>Export PNG</button>
               <button id="export-gif-btn" type="button" disabled>Export GIF</button>
@@ -79,6 +83,10 @@
               <input id="export-width" type="number" min="100" max="10000" step="10" value="0" aria-label="Export width px">
               <span class="size-x">×</span>
               <input id="export-height" type="number" min="100" max="10000" step="10" value="0" aria-label="Export height px">
+            </div>
+            <div class="size-row">
+              <label for="export-fps">Frame rate (FPS)</label>
+              <input id="export-fps" type="number" min="1" max="60" step="1" value="10" aria-label="GIF frame rate">
             </div>
             <div id="gif-progress" hidden>
               <div class="gif-progress-text">Idle</div>

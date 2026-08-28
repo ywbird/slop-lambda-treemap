@@ -53,6 +53,7 @@ export async function exportPng(renderer, ast, { width, height, colorOverrides }
         )
   );
   downloadBlob(blob, `lambda-treemap-${w}x${h}-${timestamp()}.png`);
+  return blob;
 }
 
 /**
@@ -206,7 +207,7 @@ export function exportGif({
   return new Promise((resolve, reject) => {
     gif.on('finished', (blob) => {
       downloadBlob(blob, `lambda-treemap-reduction-${w}x${h}-${timestamp()}.gif`);
-      resolve();
+      resolve(blob);
     });
     try {
       gif.render();
