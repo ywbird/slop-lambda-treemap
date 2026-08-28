@@ -21,6 +21,11 @@
         <div id="variables-list"></div>
         <button type="button" id="add-variable-btn" class="var-add">+ 변수 추가</button>
       </details>
+      <details id="color-details">
+        <summary>색상 (변수별 HSL)</summary>
+        <div id="color-list"></div>
+        <p class="color-hint">현재 식에 등장하는 변수마다 HSL 슬라이더가 생깁니다. <code>초기화</code>로 자동 색(바인딩 해시)으로 돌아갑니다.</p>
+      </details>
       <div id="presets" class="presets" aria-label="예시 식">
         <button type="button" class="preset" data-expr="(λx. λy. x) a b">K 조합자</button>
         <button type="button" class="preset" data-expr="(λx. x x) (λy. y)">자기 적용</button>

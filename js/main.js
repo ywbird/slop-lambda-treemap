@@ -3,7 +3,7 @@
 import { parse } from './parser.js';
 import { dumpAst } from './ast.js';
 import { reduceStep } from './reducer.js';
-import { layoutTreemap, exprToSegments } from './treemap.js';
+import { layoutTreemap, exprToSegments, colorForKey, collectBindingsByName } from './treemap.js';
 import { TreemapRenderer } from './renderer.js';
 import { ReductionAnimator, EASINGS } from './animator.js';
 import { expandVariables, DEFAULT_VARIABLES, churchNumeralOf } from './variables.js';
@@ -26,6 +26,7 @@ const exportPngBtn = document.getElementById('export-png-btn');
 const exportGifBtn = document.getElementById('export-gif-btn');
 const exportWidthInput = document.getElementById('export-width');
 const exportHeightInput = document.getElementById('export-height');
+const colorListEl = document.getElementById('color-list');
 const statusEl = document.getElementById('status');
 const errorEl = document.getElementById('error');
 
@@ -38,6 +39,8 @@ const state = {
   animating: false,
   autoRunning: false,
   exporting: false,
+  colorOverrides: new Map(),
+  bindingsByName: new Map(),
 };
 
 /**
@@ -49,7 +52,12 @@ function renderStatus(suffix = '') {
   if (!state.ast) {
     return;
   }
-  for (const seg of exprToSegments(state.ast)) {
+  for (const seg of exprToSegments(
+    state.ast,
+    new Map(),
+    state.colorOverrides,
+    state.bindingsByName
+  )) {
     const span = document.createElement('span');
     span.textContent = seg.text;
     if (seg.color) {
@@ -96,7 +104,9 @@ function refreshTreemap() {
     return;
   }
   const { w, h } = renderer.getSize();
-  renderer.setLayout(layoutTreemap(state.ast, { x: 0, y: 0, w, h }));
+  renderer.setLayout(
+    layoutTreemap(state.ast, { x: 0, y: 0, w, h }, state.colorOverrides)
+  );
 }
 
 /** 슬라이더로 조절되는 애니메이션 지속시간(ms). */
@@ -137,6 +147,132 @@ function syncExportSizeInputs() {
   exportHeightInput.value = renderer.h;
 }
 
+/**
+ * AST 에 등장하는 모든 변수 이름(묶인 것 + 자유 변수)을 유일하게 모아 반환한다.
+ * 등장 순서로 정렬하지 않으면 매번 UI 가 흔들리므로 정렬해서 안정성을 준다.
+ */
+function collectVariableNames(ast) {
+  const names = new Set();
+  function walk(node) {
+    if (!node) return;
+    if (node.type === 'var') names.add(node.name);
+    else if (node.type === 'lambda') {
+      names.add(node.param);
+      walk(node.body);
+    } else if (node.type === 'app') {
+      walk(node.func);
+      walk(node.arg);
+    }
+  }
+  walk(ast);
+  return [...names].sort();
+}
+
+/** 이름에 대응하는 자동 색(바인딩이 있으면 bindingId, 없으면 free:NAME). */
+function autoColorForName(name) {
+  const ids = state.bindingsByName.get(name);
+  if (ids && ids.size > 0) {
+    return colorForKey([...ids][0]);
+  }
+  return colorForKey(`free:${name}`);
+}
+
+/** 이름에 대한 override 의 현재 HSL 값을 돌려준다(없으면 자동). */
+function effectiveColor(name) {
+  return state.colorOverrides.get(name) ?? autoColorForName(name);
+}
+
+/**
+ * 현재 AST 기준으로 색상 행들을 다시 그린다.
+ * 기존 행은 모두 제거하고 (변수 집합이 바뀔 수 있으므로) 처음부터 새로 만든다.
+ */
+function populateColorList() {
+  colorListEl.textContent = '';
+  if (!state.ast) return;
+  for (const name of collectVariableNames(state.ast)) {
+    colorListEl.appendChild(buildColorRow(name));
+  }
+}
+
+function buildColorRow(name) {
+  const row = document.createElement('div');
+  row.className = 'color-row';
+  row.dataset.name = name;
+
+  const nameEl = document.createElement('span');
+  nameEl.className = 'color-name';
+  nameEl.textContent = name;
+
+  const swatch = document.createElement('span');
+  swatch.className = 'color-swatch';
+
+  const sliders = {};
+  for (const axis of ['h', 's', 'l']) {
+    const label = document.createElement('label');
+    label.style.display = 'flex';
+    label.style.alignItems = 'center';
+    label.style.gap = '4px';
+    label.style.fontSize = '0.7rem';
+    const text = document.createElement('span');
+    text.textContent = axis.toUpperCase();
+    const input = document.createElement('input');
+    input.type = 'range';
+    input.min = axis === 'h' ? '0' : '0';
+    input.max = axis === 'h' ? '359' : '100';
+    input.step = '1';
+    input.dataset.axis = axis;
+    input.setAttribute('aria-label', `${name} ${axis.toUpperCase()}`);
+    label.append(text, input);
+    sliders[axis] = input;
+    row.appendChild(label);
+  }
+
+  const reset = document.createElement('button');
+  reset.type = 'button';
+  reset.className = 'color-reset';
+  reset.textContent = '초기화';
+
+  row.append(nameEl, swatch, sliders.h.parentElement, sliders.s.parentElement, sliders.l.parentElement, reset);
+
+  const syncFromColor = (hslStr) => {
+    const m = hslStr.match(/^hsl\((\d+),\s*(\d+)%,\s*(\d+)%\)$/);
+    if (!m) return;
+    sliders.h.value = m[1];
+    sliders.s.value = m[2];
+    sliders.l.value = m[3];
+    swatch.style.background = hslStr;
+  };
+  syncFromColor(effectiveColor(name));
+
+  let timer = null;
+  const scheduleRebuild = () => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      timer = null;
+      const hsl = `hsl(${sliders.h.value}, ${sliders.s.value}%, ${sliders.l.value}%)`;
+      state.colorOverrides.set(name, hsl);
+      swatch.style.background = hsl;
+      render();
+      refreshTreemap();
+    }, 100);
+  };
+  for (const axis of ['h', 's', 'l']) {
+    sliders[axis].addEventListener('input', scheduleRebuild);
+  }
+  reset.addEventListener('click', () => {
+    if (timer) {
+      clearTimeout(timer);
+      timer = null;
+    }
+    state.colorOverrides.delete(name);
+    syncFromColor(autoColorForName(name));
+    render();
+    refreshTreemap();
+  });
+
+  return row;
+}
+
 // 보간 함수 옵션 채우기 (기본: ease-in-out)
 for (const [name, fn] of Object.entries(EASINGS)) {
   const opt = document.createElement('option');
@@ -157,6 +293,7 @@ speedSlider.addEventListener('input', () => {
 function commitStep(result, after) {
   const oldAst = state.ast;
   state.ast = result.expr;
+  state.bindingsByName = collectBindingsByName(state.ast);
   state.steps++;
   state.animating = true;
   render();
@@ -242,7 +379,9 @@ function parseCurrent() {
   try {
     const expanded = expandVariables(input.value, readVariables());
     state.ast = parse(expanded);
+    state.bindingsByName = collectBindingsByName(state.ast);
     state.steps = 0;
+    populateColorList();
     render();
     refreshTreemap();
     updateButtons();
@@ -250,7 +389,9 @@ function parseCurrent() {
     console.log(dumpAst(state.ast));
   } catch (e) {
     state.ast = null;
+    state.bindingsByName = new Map();
     errorEl.textContent = e.message;
+    populateColorList();
     render();
     refreshTreemap();
     updateButtons();
@@ -332,9 +473,12 @@ autoBtn.addEventListener('click', () => {
 resetBtn.addEventListener('click', () => {
   stopEverything();
   state.ast = null;
+  state.bindingsByName = new Map();
+  state.colorOverrides.clear();
   state.steps = 0;
   input.value = '';
   errorEl.textContent = '';
+  populateColorList();
   render();
   refreshTreemap();
   updateButtons();
