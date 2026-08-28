@@ -489,13 +489,15 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
   font-size: 0.85rem;
   font-weight: 700;
   color: var(--text);
 }
 
 .speed-control input[type='range'] {
-  flex: 0 1 220px;
+  flex: 1 1 200px;
+  min-width: 120px;
   accent-color: #111111;
 }
 
@@ -505,6 +507,8 @@ button:disabled {
 }
 
 .speed-control select {
+  flex: 1 1 120px;
+  min-width: 100px;
   font: 700 0.85rem ui-monospace, monospace;
   padding: 4px 8px;
   background: var(--panel);
