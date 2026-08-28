@@ -314,7 +314,7 @@ exportPngBtn.addEventListener('click', async () => {
   state.exporting = true;
   errorEl.textContent = '';
   try {
-    await exportPng(renderer);
+    await exportPng(renderer, state.ast);
     statusEl.textContent = '';
     renderStatus('  (PNG 저장 완료)');
   } catch (e) {

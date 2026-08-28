@@ -5,7 +5,7 @@
 // 프레임당 로컬 팔레트(≤256색)만 쓰고, 넘으면 최빈 256색 + 최근접 양자화.
 
 import { reduceStep, reduceAll } from './reducer.js';
-import { layoutTreemap } from './treemap.js';
+import { layoutTreemap, cellGap } from './treemap.js';
 import {
   buildFrameContext,
   computeFrame,
@@ -37,12 +37,30 @@ function downloadBlob(blob, filename) {
   URL.revokeObjectURL(url);
 }
 
-export async function exportPng(renderer) {
+export async function exportPng(renderer, ast) {
+  const w = renderer.w;
+  const h = renderer.h;
+  if (w < 2 || h < 2) throw new Error('캔버스 크기가 너무 작아 PNG 를 만들 수 없습니다.');
+
+  const surface = makeOffscreen(w, h);
+  const ctx = getCtx2d(surface);
+  const offRenderer = new TreemapRenderer(surface);
+  offRenderer.setSize(w, h, 1);
+  // 배경(흰색)을 깔고 인셋 영역으로 트리맵을 그린다.
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, w, h);
+  offRenderer.setLayout(layoutTreemap(ast, paddedBounds(w, h)));
+
   const blob = await new Promise((resolve, reject) =>
-    renderer.canvas.toBlob(
-      (b) => (b ? resolve(b) : reject(new Error('PNG 인코딩 실패'))),
-      'image/png'
-    )
+    surface.convertToBlob
+      ? surface.convertToBlob({ type: 'image/png' }).then(resolve, reject)
+      : new Promise((res) =>
+          surface.toBlob(
+            (b) => (b ? res(b) : reject(new Error('PNG 인코딩 실패'))),
+            'image/png'
+          )
+        )
   );
   downloadBlob(blob, `lambda-treemap-${timestamp()}.png`);
 }
@@ -67,6 +85,21 @@ function getCtx2d(surface) {
 
 function readPixels(ctx, w, h) {
   return new Uint8ClampedArray(ctx.getImageData(0, 0, w, h).data.buffer);
+}
+
+/**
+ * 트리맵이 캔버스 가장자리에 닿지 않도록 cellGap 만큼 안쪽으로 인셋한 영역.
+ * 내보낼 때만 사용 — 화면 표시는 그대로 가장자리까지 채운다.
+ * ponytail: 화면 표시 동작 변경 안 함.
+ */
+export function paddedBounds(w, h) {
+  const gap = cellGap({ x: 0, y: 0, w, h });
+  return {
+    x: gap,
+    y: gap,
+    w: Math.max(1, w - gap * 2),
+    h: Math.max(1, h - gap * 2),
+  };
 }
 
 // ----- GIF89a 인코더 (LZW) -----
@@ -282,12 +315,13 @@ export async function exportGif({
   const subFrames = SUB_FRAMES_PER_STEP;
   const totalFrames = 1 + stepCount * subFrames; // 첫 정적 프레임 + 변이당 보간 프레임
   const delayCs = Math.max(2, Math.round(frameMs / 10));
+  const bounds = paddedBounds(w, h);
 
   const chunks = [];
   chunks.push(headerBytes(w, h));
 
   // 첫 프레임: 초기 AST 를 통째로 그린다 (스텝 0 의 정적 모습).
-  offRenderer.setLayout(layoutTreemap(history[0], { x: 0, y: 0, w, h }));
+  offRenderer.setLayout(layoutTreemap(history[0], bounds));
   {
     const pixels = readPixels(ctx, w, h);
     const { palette, indices } = buildPaletteAndIndices(pixels);
@@ -309,7 +343,7 @@ export async function exportGif({
       oldAst,
       newAst,
       redex,
-      bounds: { x: 0, y: 0, w, h },
+      bounds,
     });
     if (!ctxFrame) continue;
     for (let k = 0; k < subFrames; k++) {
