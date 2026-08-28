@@ -8,21 +8,23 @@
 </head>
 <body>
   <header>
-    <h1>Lambda Treemap</h1>
-    <p class="subtitle">람다 대수 식을 트리맵으로 시각화하고 베타 축약을 애니메이션으로 보여줍니다.</p>
-    <p class="article-link">이 표기법의 원문: <a href="https://meliplug.info/articles/math/lambda-treemap/" target="_blank" rel="noopener">Lambda Treemap — meliplug.info</a></p>
+    <div class="header-main">
+      <h1>Lambda Treemap</h1>
+      <p class="subtitle">람다 대수 식을 트리맵으로 시각화하고 베타 축약을 애니메이션으로 보여줍니다.</p>
+      <p class="article-link">이 표기법의 원문: <a href="https://meliplug.info/articles/math/lambda-treemap/" target="_blank" rel="noopener">Lambda Treemap — meliplug.info</a></p>
+    </div>
+    <div class="layout-control">
+      <label for="layout-mode">보기</label>
+      <select id="layout-mode" aria-label="레이아웃 모드">
+        <option value="stacked">세로 (기본)</option>
+        <option value="side-by-side">좌우 (입력 ↔ 트리맵)</option>
+        <option value="treemap-only">트리맵만</option>
+      </select>
+    </div>
   </header>
 
   <main>
     <section id="controls">
-      <div class="layout-control">
-        <label for="layout-mode">보기</label>
-        <select id="layout-mode" aria-label="레이아웃 모드">
-          <option value="stacked">세로 (기본)</option>
-          <option value="side-by-side">좌우 (입력 ↔ 트리맵)</option>
-          <option value="treemap-only">트리맵만</option>
-        </select>
-      </div>
       <input id="expr-input" type="text" placeholder="예: (λx. λy. x) a b — λ 대신 \ 로도 입력 가능 — $이름, $숫자(교회 숫자) 사용 가능" aria-label="람다 대수 식 입력" spellcheck="false" autocapitalize="off">
       <details id="variables-details">
         <summary>변수 ($이름 치환)</summary>

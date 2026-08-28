@@ -29,6 +29,15 @@ body {
 
 header {
   padding: 20px 24px 8px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.header-main {
+  flex: 1;
+  min-width: 0;
 }
 
 h1 {
