@@ -489,19 +489,57 @@ button:disabled {
   border: 2px solid var(--border);
 }
 
+.color-row .color-channel-wrap {
+  position: relative;
+  display: inline-block;
+}
+
 .color-row .color-channel {
   width: 3ch;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-family: ui-monospace, monospace;
   font-size: 0.9rem;
   font-weight: 700;
   padding: 4px 2px;
   background: var(--bg);
   border: 2px solid var(--border);
-  appearance: none;
-  -webkit-appearance: none;
-  background-image: none;
   cursor: pointer;
+}
+
+.color-row .color-channel-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 30;
+  min-width: 3.5ch;
+  background: var(--panel);
+  border: 2px solid var(--border);
+  box-shadow: 2px 2px 0 #111111;
+}
+
+.color-row .color-channel-menu.open {
+  display: block;
+}
+
+.color-row .color-channel-opt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 2px 8px;
+  border: none;
+  background: transparent;
+  font-family: ui-monospace, monospace;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.color-row .color-channel-opt:hover {
+  outline: 2px solid #111111;
 }
 
 .color-row .color-reset {
@@ -518,6 +556,17 @@ button:disabled {
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--muted);
+}
+
+.color-credit {
+  margin: 6px 0 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.color-credit a {
+  color: var(--accent);
 }
 
 .color-hint code {

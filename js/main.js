@@ -293,46 +293,94 @@ function buildColorRow(name) {
   const swatch = document.createElement('span');
   swatch.className = 'color-swatch';
 
-  // splash 색은 3자리 RGB(각 자리 0..9) — 채널마다 드롭다운 하나씩.
+  // splash 색은 3자리 RGB(각 자리 0..9) — 채널마다 커스텀 색상 드롭다운.
+  // 네이티브 <select>의 option 팝업은 배경색을 안 그려주므로, DOM 으로 직접 만든다.
   const channels = [];
   for (const [idx, ch] of ['R', 'G', 'B'].entries()) {
-    const sel = document.createElement('select');
-    sel.className = 'color-channel';
-    sel.setAttribute('aria-label', `${name} ${ch} channel (0-9)`);
-    for (let d = 0; d <= 9; d++) {
-      const opt = document.createElement('option');
-      opt.value = String(d);
-      opt.textContent = String(d);
-      sel.appendChild(opt);
-    }
-    channels.push(sel);
-  }
+    const wrap = document.createElement('div');
+    wrap.className = 'color-channel-wrap';
 
-  // 각 옵션을 "이 채널도 그 자릿수로 두었을 때"의 합성 splash 색으로 미리 보여준다.
-  // 예: G=3, B=8 일 때 R 드롭다운의 옵션 9 는 938, 옵션 8 은 838 색을 띤다.
-  const paintOptions = () => {
-    const cur = channels.map((s) => s.value);
-    for (let i = 0; i < 3; i++) {
-      for (const opt of channels[i].options) {
-        const digits = cur.slice();
-        digits[i] = opt.value;
-        const hsl = splashToHsl(digits.join(''));
-        if (!hsl) continue;
-        opt.style.backgroundColor = formatHsl(hsl);
-        opt.style.color = hsl.l < 50 ? '#ffffff' : '#111111';
-      }
+    const trigger = document.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'color-channel';
+    trigger.setAttribute('aria-label', `${name} ${ch} channel (0-9)`);
+    trigger.setAttribute('aria-haspopup', 'listbox');
+    trigger.setAttribute('aria-expanded', 'false');
+    const digitEl = document.createElement('span');
+    trigger.appendChild(digitEl);
+
+    const menu = document.createElement('div');
+    menu.className = 'color-channel-menu';
+    menu.setAttribute('role', 'listbox');
+    menu.setAttribute('aria-label', `${name} ${ch} channel digits`);
+    const optEls = [];
+    for (let d = 0; d <= 9; d++) {
+      const opt = document.createElement('button');
+      opt.type = 'button';
+      opt.className = 'color-channel-opt';
+      opt.dataset.d = String(d);
+      opt.setAttribute('role', 'option');
+      opt.setAttribute('aria-label', String(d));
+      opt.textContent = String(d);
+      optEls.push(opt);
+      menu.appendChild(opt);
     }
-  };
+
+    const ctl = {
+      index: idx,
+      wrap,
+      trigger,
+      digitEl,
+      menu,
+      optEls,
+      value: '0',
+      set(d) {
+        this.value = String(d);
+        digitEl.textContent = String(d);
+      },
+      open() {
+        menu.classList.add('open');
+        trigger.setAttribute('aria-expanded', 'true');
+        paintChannel(this);
+      },
+      close() {
+        menu.classList.remove('open');
+        trigger.setAttribute('aria-expanded', 'false');
+      },
+    };
+
+    wrap.append(trigger, menu);
+    channels.push(ctl);
+  }
 
   const reset = document.createElement('button');
   reset.type = 'button';
   reset.className = 'color-reset';
   reset.textContent = 'Reset';
 
-  row.append(nameEl, swatch, ...channels, reset);
+  row.append(nameEl, swatch, ...channels.map((c) => c.wrap), reset);
+
+  /** 현재 값 기준으로 한 채널의 각 옵션을 합성 splash 색으로 칠한다. */
+  const paintChannel = (ctl) => {
+    const cur = channels.map((c) => c.value);
+    for (const opt of ctl.optEls) {
+      const digits = cur.slice();
+      digits[ctl.index] = opt.dataset.d;
+      const hsl = splashToHsl(digits.join(''));
+      if (!hsl) continue;
+      opt.style.backgroundColor = formatHsl(hsl);
+      opt.style.color = hsl.l < 50 ? '#ffffff' : '#111111';
+    }
+  };
+  const paintOptions = () => {
+    for (const ctl of channels) paintChannel(ctl);
+  };
+  const closeOpenMenus = () => {
+    for (const ctl of channels) ctl.close();
+  };
 
   const setChannels = (splash) => {
-    for (let i = 0; i < 3; i++) channels[i].value = splash[i];
+    for (let i = 0; i < 3; i++) channels[i].set(splash[i]);
   };
 
   const syncFromColor = (hslStr) => {
@@ -349,33 +397,62 @@ function buildColorRow(name) {
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => {
       timer = null;
-      const splash = channels.map((s) => s.value).join('');
+      const splash = channels.map((c) => c.value).join('');
       const hsl = splashToHsl(splash);
       if (!hsl) return;
       const hslStr = formatHsl(hsl);
       state.colorOverrides.set(name, hslStr);
       swatch.style.background = hslStr;
       setChannels(hslToSplash(hslStr));
+      paintOptions();
       render();
       refreshTreemap();
     }, 100);
   };
   // 마우스 휠로 자릿수 순환 (위=증가, 아래=감소, 9↔0 반복). 페이지 스크롤 방지.
-  const stepChannel = (sel, dir) => {
-    sel.value = String((Number(sel.value) + dir + 10) % 10);
+  const stepChannel = (ctl, dir) => {
+    const next = (Number(ctl.value) + dir + 10) % 10;
+    ctl.set(String(next));
     paintOptions();
     scheduleRebuild();
   };
-  for (const sel of channels) {
-    sel.addEventListener('change', () => {
-      paintOptions();
-      scheduleRebuild();
+  for (const ctl of channels) {
+    ctl.trigger.addEventListener('click', () => {
+      const isOpen = ctl.menu.classList.contains('open');
+      closeOpenMenus();
+      if (!isOpen) ctl.open();
     });
-    sel.addEventListener('wheel', (e) => {
+    for (const opt of ctl.optEls) {
+      opt.addEventListener('click', () => {
+        ctl.set(opt.dataset.d);
+        paintOptions();
+        scheduleRebuild();
+        closeOpenMenus();
+      });
+    }
+    ctl.trigger.addEventListener('wheel', (e) => {
       e.preventDefault();
-      stepChannel(sel, e.deltaY < 0 ? 1 : -1);
+      stepChannel(ctl, e.deltaY < 0 ? 1 : -1);
+    });
+    // 닫힌 상태에서도 방향키로 자릿수 순환 (접근성).
+    ctl.trigger.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        stepChannel(ctl, 1);
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        stepChannel(ctl, -1);
+      } else if (e.key === 'Escape') {
+        ctl.close();
+      }
     });
   }
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.color-channel-wrap')) closeOpenMenus();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeOpenMenus();
+  });
   reset.addEventListener('click', () => {
     if (timer) {
       clearTimeout(timer);
