@@ -18,9 +18,16 @@ export class TreemapRenderer {
   /** CSS 크기와 devicePixelRatio에 맞춰 비트맵 크기를 갱신한다. */
   _syncSize() {
     const dpr = window.devicePixelRatio || 1;
-    const css = this.canvas.getBoundingClientRect();
-    const w = Math.max(1, Math.round(css.width));
-    const h = Math.max(1, Math.round(css.height));
+    let w, h;
+    if (typeof this.canvas.getBoundingClientRect === 'function') {
+      const css = this.canvas.getBoundingClientRect();
+      w = Math.max(1, Math.round(css.width));
+      h = Math.max(1, Math.round(css.height));
+    } else {
+      // OffscreenCanvas: 레이아웃 정보가 없으므로 기존 비트맵 크기를 CSS 크기로 사용.
+      w = Math.max(1, this.canvas.width);
+      h = Math.max(1, this.canvas.height);
+    }
     const bitmapW = Math.round(w * dpr);
     const bitmapH = Math.round(h * dpr);
     if (this.canvas.width !== bitmapW || this.canvas.height !== bitmapH) {
@@ -30,6 +37,18 @@ export class TreemapRenderer {
     this.dpr = dpr;
     this.w = w;
     this.h = h;
+  }
+
+  /**
+   * 외부에서 크기와 dpr을 강제 설정한다 (오프스크린 캔버스용).
+   * ponytail: GIF 내보내기 외엔 쓸 일 없음.
+   */
+  setSize(w, h, dpr = 1) {
+    this.w = w;
+    this.h = h;
+    this.dpr = dpr;
+    this.canvas.width = Math.round(w * dpr);
+    this.canvas.height = Math.round(h * dpr);
   }
 
   /** canvas의 CSS 픽셀 크기 (레이아웃 rect 계산용) */

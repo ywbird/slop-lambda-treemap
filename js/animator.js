@@ -220,6 +220,43 @@ export function slotMorphs(oldLayout, newLayout, path, redex) {
   return targets.map((slot, i) => ({ slot, dest: destinations[i] ?? slot }));
 }
 
+/**
+ * 축약 전/후 레이아웃 + redex 메타데이터를 한 번 계산해 컨텍스트로 묶는다.
+ * 같은 컨텍스트로 computeFrame(ctx, e)을 여러 번 호출해 보간 프레임을 뽑는다.
+ * @returns {object|null} null 이면(redex 위치를 찾을 수 없음 등) 프레임 없음.
+ */
+export function buildFrameContext({ oldAst, newAst, redex, bounds }) {
+  const oldLayout = layoutTreemap(oldAst, bounds);
+  const newLayout = layoutTreemap(newAst, bounds);
+  const path = pathToNode(oldAst, redex.app);
+  const appCell = findCellByNode(oldLayout, redex.app);
+  if (!path || !appCell || appCell.kind !== 'app') {
+    return null;
+  }
+  const paramKey = redex.app.func.bindingId;
+  const ghost = { cell: appCell.func, alpha: 1 };
+  const slots = slotMorphs(oldLayout, newLayout, path, redex);
+  return { oldLayout, newLayout, path, appCell, paramKey, ghost, slots };
+}
+
+/**
+ * 컨텍스트와 보간 비율(e∈[0,1])을 받아 렌더 가능한 {tree, ghosts}를 만든다.
+ * 실시간 애니메이션과 GIF 내보내기가 둘 다 이 함수를 거치도록 통일했다.
+ */
+export function computeFrame(ctx, eased) {
+  const { oldLayout, newLayout, path, appCell, paramKey, ghost, slots } = ctx;
+  const tree = morphAlong(oldLayout, newLayout, path, eased, appCell.arg, paramKey);
+  const ghosts = [{ cell: ghost.cell, alpha: 1 - eased }];
+  for (const { slot, dest } of slots) {
+    ghosts.push({
+      cell: slot,
+      alpha: 1 - eased,
+      rect: lerpRect(slot.rect, dest.rect, eased),
+    });
+  }
+  return { tree, ghosts };
+}
+
 export class ReductionAnimator {
   /** @param {import('./renderer.js').TreemapRenderer} renderer */
   constructor(renderer) {
@@ -246,38 +283,22 @@ export class ReductionAnimator {
     this.cancel();
 
     const { w, h } = this.renderer.getSize();
-    const bounds = { x: 0, y: 0, w, h };
-    const oldLayout = layoutTreemap(oldAst, bounds);
-    const newLayout = layoutTreemap(newAst, bounds);
-    const path = pathToNode(oldAst, redex.app);
-    const appCell = findCellByNode(oldLayout, redex.app);
-
-    if (!path || !appCell || appCell.kind !== 'app') {
+    const ctx = buildFrameContext({
+      oldAst,
+      newAst,
+      redex,
+      bounds: { x: 0, y: 0, w, h },
+    });
+    if (!ctx) {
       onDone?.();
       return;
     }
-
-    // 대입 지점 감지용: redex λ의 색 키(바인딩 ID)
-    const paramKey = redex.app.func.bindingId;
-
-    // 소비되는 λ: 테두리만 페이드아웃하는 고스트
-    const ghost = { cell: appCell.func, alpha: 1 };
-    // 치환 슬롯: body 확장을 따라 이동하며 트리 아래에서 fade out
-    const slots = slotMorphs(oldLayout, newLayout, path, redex);
 
     const start = performance.now();
     const frame = (now) => {
       const t = Math.min(1, (now - start) / durationMs);
       const eased = easing(t);
-      const tree = morphAlong(oldLayout, newLayout, path, eased, appCell.arg, paramKey);
-      const ghosts = [{ cell: ghost.cell, alpha: 1 - eased }];
-      for (const { slot, dest } of slots) {
-        ghosts.push({
-          cell: slot,
-          alpha: 1 - eased,
-          rect: lerpRect(slot.rect, dest.rect, eased),
-        });
-      }
+      const { tree, ghosts } = computeFrame(ctx, eased);
       this.renderer.renderMorph(tree, ghosts);
       if (t < 1) {
         this._raf = requestAnimationFrame(frame);
