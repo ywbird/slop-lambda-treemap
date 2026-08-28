@@ -337,6 +337,9 @@ export async function exportGif({
     chunks.push(graphicControlBytes(delayCs));
     chunks.push(imageDescriptorBytes(w, h));
     chunks.push(localColorTableBytes(palette));
+    // ponytail: GIF89a §Image Data — 섹션은 반드시 [LZW min code size] 바이트로 시작.
+    // 빠지면 첫 sub-block 길이(또는 종결 0)가 min code size 로 읽혀 디코더가 깨진다.
+    chunks.push(new Uint8Array([MIN_CODE_SIZE]));
     chunks.push(packSubBlocks(lzw));
     onProgress?.(1, totalFrames);
   }
@@ -365,6 +368,7 @@ export async function exportGif({
       chunks.push(graphicControlBytes(delayCs));
       chunks.push(imageDescriptorBytes(w, h));
       chunks.push(localColorTableBytes(palette));
+      chunks.push(new Uint8Array([MIN_CODE_SIZE]));
       chunks.push(packSubBlocks(lzw));
       onProgress?.(1 + i * subFrames + k + 1, totalFrames);
     }

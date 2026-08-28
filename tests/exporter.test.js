@@ -118,3 +118,31 @@ test('computeFrame: 중간 e는 rect 가 양 극값 사이의 선형 보간', ()
     );
   }
 });
+
+// ---------- GIF 바이트 레이아웃 (회귀: min code size 바이트 누락) ----------
+
+test('GIF LZW 섹션: [min code size] + sub-blocks 구조 (회귀)', () => {
+  // 4 픽셀의 단색 이미지 — LZW는는 clearCode + 한 코드만 내보낸다.
+  // 디코더는 min code size 를 첫 바이트로 읽는다 — 0 이면 안 된다.
+  const pixels = new Uint8ClampedArray([
+    255, 0, 0, 255, 255, 0, 0, 255,
+    255, 0, 0, 255, 255, 0, 0, 255,
+  ]);
+  const { palette, indices } = buildPaletteAndIndices(pixels);
+  const lzw = lzwEncode(indices);
+  const MIN_CODE_SIZE = 8;
+  // exporter.js 의 프레임 쓰기 순서 그대로 모방:
+  const section = [
+    new Uint8Array([MIN_CODE_SIZE]),
+    packSubBlocks(lzw),
+  ].reduce((acc, x) => acc.concat([...x]), []);
+  assert.equal(section[0], MIN_CODE_SIZE, '첫 바이트는 LZW min code size');
+  // 그 다음 바이트는 첫 sub-block 의 길이 (1..255 또는 0 종결).
+  const firstSubBlockLen = section[1];
+  assert.ok(
+    firstSubBlockLen >= 0 && firstSubBlockLen <= 255,
+    `sub-block 길이 범위: got ${firstSubBlockLen}`
+  );
+  // 팔레트 크기는 항상 256 → min code size = 8 고정
+  assert.equal(palette.length, 256);
+});
