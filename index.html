@@ -39,13 +39,6 @@
         <div class="tab-panels">
           <div class="tab-panel" id="panel-main" role="tabpanel">
             <input id="expr-input" type="text" placeholder="e.g. (λx. λy. x) a b — \ also works — $name, $number (Church numerals)" aria-label="Lambda expression" spellcheck="false" autocapitalize="off">
-            <div id="presets" class="presets" aria-label="Example expressions">
-              <button type="button" class="preset" data-expr="(λx. λy. x) a b">K combinator</button>
-              <button type="button" class="preset" data-expr="(λx. x x) (λy. y)">Self application</button>
-              <button type="button" class="preset" data-expr="(λx. x x x) (a b)">Multi-substitution</button>
-              <button type="button" class="preset" data-expr="(λn. λf. λx. f (n f x)) (λf. λx. f x) a b">Successor number</button>
-              <button type="button" class="preset" data-expr="(λx. x x) (λx. x x)">Omega</button>
-            </div>
             <div class="buttons">
               <button id="parse-btn" type="button">Parse</button>
               <button id="step-btn" type="button" disabled>Step (one reduction)</button>
@@ -61,6 +54,13 @@
             </div>
           </div>
           <div class="tab-panel" id="panel-vars" role="tabpanel">
+            <div id="presets" class="presets" aria-label="Example expressions">
+              <button type="button" class="preset" data-expr="((λx. λy. x) a b)">K combinator</button>
+              <button type="button" class="preset" data-expr="((λx. x x) (λy. y))">Self application</button>
+              <button type="button" class="preset" data-expr="((λx. x x x) (a b))">Multi-substitution</button>
+              <button type="button" class="preset" data-expr="((λn. λf. λx. f (n f x)) (λf. λx. f x) a b)">Successor number</button>
+              <button type="button" class="preset" data-expr="((λx. x x) (λx. x x))">Omega</button>
+            </div>
             <div id="variables-list"></div>
             <button type="button" id="add-variable-btn" class="var-add">+ Add variable</button>
           </div>
