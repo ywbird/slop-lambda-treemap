@@ -7,12 +7,13 @@ import {
   morphAlong,
   redexTargets,
   slotMorphs,
+  computeFrame,
+  buildFrameContext,
   EASINGS,
 } from '../js/animator.js';
 import { parse } from '../js/parser.js';
 import { reduceStep } from '../js/reducer.js';
 import { layoutTreemap } from '../js/treemap.js';
-
 const FULL = { x: 0, y: 0, w: 100, h: 100 };
 
 test('easeInOutCubic: 끝점과 중간값', () => {
@@ -212,4 +213,20 @@ test('morphAlong: 변수 인자가 여러 곳에 대입되면 전부 인자 위�
   const tree = morphAlong(oldL, newL, [], 0, oldL.arg, ast.func.bindingId);
   assert.deepEqual(tree.func.rect, oldL.arg.rect);
   assert.deepEqual(tree.arg.rect, oldL.arg.rect);
+});
+
+test('computeFrame: 치환 슬롯 고스트는 도착 값의 커스텀 색을 쓴다', () => {
+  const overrides = new Map([['y', 'hsl(300, 90%, 30%)']]);
+  const ast = parse('(λx. x) y');
+  const r = reduceStep(ast);
+  const ctx = buildFrameContext({
+    oldAst: ast,
+    newAst: r.expr,
+    redex: r.redex,
+    bounds: FULL,
+    colorOverrides: overrides,
+  });
+  const { ghosts } = computeFrame(ctx, 0.5);
+  const slotGhost = ghosts.find((g) => g.cell.kind === 'var');
+  assert.equal(slotGhost.cell.color, 'hsl(300, 90%, 30%)');
 });

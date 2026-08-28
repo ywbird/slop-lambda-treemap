@@ -7,6 +7,9 @@
   --muted: #454545;
   --border: #111111;
   --shadow: 4px 4px 0 #111111;
+  --shadow-2: 2px 2px 0 #111111;   /* 작은 카드/버튼 그림자 */
+  --shadow-3: 3px 3px 0 #111111;   /* 프리셋 등 중간 그림자 */
+  --canvas-bg: #ffffff;            /* 트리맵 캔버스 배경 (다크에서 반전) */
   --accent: #7c3aed;      /* 링크/배지 */
   --error: #e63946;
   --yellow: #ffd93d;
@@ -14,6 +17,19 @@
   --pink: #ffb3c6;
   --cyan: #90e0ef;
   --orange: #ffb347;
+}
+
+/* 다크 모드: 검은 네오브루탈리즘 테두리를 크림으로 반전해 선이 살아있게 한다. */
+:root.dark {
+  --bg: #181818;          /* 잉크 배경 */
+  --panel: #242424;
+  --text: #f5efe0;        /* 크림 텍스트 */
+  --muted: #b0a89a;
+  --border: #f5efe0;
+  --shadow: 4px 4px 0 #f5efe0;
+  --shadow-2: 2px 2px 0 #f5efe0;
+  --shadow-3: 3px 3px 0 #f5efe0;
+  --canvas-bg: #181818;
 }
 
 * {
@@ -91,6 +107,13 @@ main {
   color: var(--text);
   border: 2px solid var(--border);
   border-radius: 0;
+}
+
+#theme-toggle {
+  font: 700 0.8rem system-ui, sans-serif;
+  padding: 4px 12px;
+  background: var(--panel);
+  box-shadow: var(--shadow-2);
 }
 
 /* 헤더(약 110px) + main 위쪽 패딩(12px) 을 뺀 높이를 viewport 에 맞춘다.
@@ -240,7 +263,7 @@ main.layout-treemap-only #treemap-canvas {
   object-fit: contain;
   background: var(--bg);
   border: 2px solid var(--border);
-  box-shadow: 2px 2px 0 #111111;
+  box-shadow: var(--shadow-2);
 }
 
 /* ----- GIF 내보내기 진행률 ----- */
@@ -252,7 +275,7 @@ main.layout-treemap-only #treemap-canvas {
   padding: 8px 10px;
   background: var(--panel);
   border: 2px solid var(--border);
-  box-shadow: 2px 2px 0 #111111;
+  box-shadow: var(--shadow-2);
   font-family: ui-monospace, monospace;
   font-size: 0.8rem;
   font-weight: 700;
@@ -353,12 +376,12 @@ button {
 
 button:hover:not(:disabled) {
   transform: translate(-2px, -2px);
-  box-shadow: 6px 6px 0 #111111;
+  box-shadow: 6px 6px 0 var(--border);
 }
 
 button:active:not(:disabled) {
   transform: translate(2px, 2px);
-  box-shadow: 0 0 0 #111111;
+  box-shadow: 0 0 0 var(--border);
 }
 
 button:disabled {
@@ -377,7 +400,7 @@ button:disabled {
   font-size: 0.8rem;
   padding: 5px 12px;
   background: var(--panel);
-  box-shadow: 3px 3px 0 #111111;
+  box-shadow: var(--shadow-3);
 }
 
 #variables-details {
@@ -430,14 +453,14 @@ button:disabled {
 .variable-row .var-delete {
   font-size: 0.75rem;
   padding: 4px 10px;
-  box-shadow: 2px 2px 0 #111111;
+  box-shadow: var(--shadow-2);
 }
 
 .var-add {
   font-size: 0.8rem;
   padding: 4px 12px;
   background: var(--yellow);
-  box-shadow: 3px 3px 0 #111111;
+  box-shadow: var(--shadow-3);
 }
 
 #color-details {
@@ -517,7 +540,7 @@ button:disabled {
   min-width: 3.5ch;
   background: var(--panel);
   border: 2px solid var(--border);
-  box-shadow: 2px 2px 0 #111111;
+  box-shadow: var(--shadow-2);
 }
 
 .color-row .color-channel-menu.open {
@@ -539,7 +562,7 @@ button:disabled {
 }
 
 .color-row .color-channel-opt:hover {
-  outline: 2px solid #111111;
+  outline: 2px solid var(--border);
 }
 
 .color-row .color-reset {
@@ -547,7 +570,7 @@ button:disabled {
   padding: 4px 8px;
   background: var(--bg);
   border: 2px solid var(--border);
-  box-shadow: 2px 2px 0 #111111;
+  box-shadow: var(--shadow-2);
   cursor: pointer;
 }
 
@@ -589,7 +612,7 @@ button:disabled {
 .speed-control input[type='range'] {
   flex: 1 1 200px;
   min-width: 120px;
-  accent-color: #111111;
+  accent-color: var(--border);
 }
 
 .speed-control output {

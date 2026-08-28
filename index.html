@@ -5,6 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Lambda Treemap</title>
   <link rel="stylesheet" href="css/style.css">
+  <script>
+    // 첫 페인트 전에 다크 모드 클래스를 적용해 잘못된 테마 깜빡임을 막는다.
+    (function () {
+      var t = null;
+      try { t = localStorage.getItem('theme'); } catch (e) {}
+      var dark = t === 'dark' || (t == null && matchMedia('(prefers-color-scheme: dark)').matches);
+      document.documentElement.classList.toggle('dark', dark);
+    })();
+  </script>
 </head>
 <body>
   <header>
@@ -14,6 +23,7 @@
       <p class="article-link">Original article: <a href="https://meliplug.info/articles/math/lambda-treemap/" target="_blank" rel="noopener">Lambda Treemap — meliplug.info</a></p>
     </div>
     <div class="layout-control">
+      <button type="button" id="theme-toggle" aria-label="Toggle dark mode">Dark</button>
       <label for="layout-mode">View</label>
       <select id="layout-mode" aria-label="Layout mode">
         <option value="stacked">Stacked (default)</option>

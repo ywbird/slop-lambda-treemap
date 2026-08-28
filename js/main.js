@@ -4,7 +4,7 @@ import { parse } from './parser.js';
 import { dumpAst } from './ast.js';
 import { reduceStep } from './reducer.js';
 import { layoutTreemap, exprToSegments, colorForKey, collectBindingsByName, splashToHsl, hslToSplash, formatHsl } from './treemap.js';
-import { TreemapRenderer } from './renderer.js';
+import { TreemapRenderer, cssBg } from './renderer.js';
 import { ReductionAnimator, EASINGS } from './animator.js';
 import { expandVariables, DEFAULT_VARIABLES, churchNumeralOf } from './variables.js';
 import { exportPng, exportGif, renderPreview } from './exporter.js';
@@ -44,6 +44,22 @@ const mainEl = document.querySelector('main');
 
 const renderer = new TreemapRenderer(document.getElementById('treemap-canvas'));
 const animator = new ReductionAnimator(renderer);
+const themeToggle = document.getElementById('theme-toggle');
+
+// ----- 다크 모드: 첫 페인트 전 <head> 스크립트가 클래스를 설정했다. 이를 따른다. -----
+let dark = document.documentElement.classList.contains('dark');
+themeToggle.addEventListener('click', () => {
+  dark = !dark;
+  localStorage.setItem('theme', dark ? 'dark' : 'light');
+  applyThemeUI();
+});
+function applyThemeUI() {
+  document.documentElement.classList.toggle('dark', dark);
+  themeToggle.textContent = dark ? 'Light' : 'Dark';
+  renderer.applyTheme();
+  refreshTreemap();
+  updateExportPreview();
+}
 
 const state = {
   ast: null,
@@ -220,10 +236,10 @@ function updateExportPreview() {
   if (exportPreviewCanvas.height !== h) exportPreviewCanvas.height = h;
   const ctx = exportPreviewCanvas.getContext('2d');
   ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.fillStyle = '#ffffff';
+  ctx.fillStyle = cssBg();
   ctx.fillRect(0, 0, w, h);
   if (!state.ast) return;
-  renderPreview(exportPreviewCanvas, state.ast, state.colorOverrides, w, h);
+  renderPreview(exportPreviewCanvas, state.ast, state.colorOverrides, w, h, cssBg());
 }
 
 /** GIF 진행률 UI 를 갱신한다. 콜백에서 (i, total) 형식으로 호출. */
@@ -498,6 +514,7 @@ function commitStep(result, after) {
     redex: result.redex,
     durationMs: animationDuration(),
     easing: animationEasing(),
+    colorOverrides: state.colorOverrides,
     onDone: () => {
       state.animating = false;
       refreshTreemap();
@@ -744,6 +761,7 @@ window.addEventListener('resize', () => {
 });
 
 syncExportSizeInputs();
+applyThemeUI(); // 다크 모드 초기 적용 (저장/OS 설정)
 applyLayoutMode(); // 초기 클래스 적용 + 사이즈 동기화
 updateButtons();
 updateExportPreview(); // 초기 미리보기 (state.ast 없으면 비움)

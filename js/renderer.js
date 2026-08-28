@@ -6,12 +6,21 @@
 
 import { cellGap } from './treemap.js';
 
+/** :root의 --canvas-bg 변수 값을 읽는다(트리맵 배경). 없으면 흰색. */
+export function cssBg() {
+  const v = getComputedStyle(document.documentElement)
+    .getPropertyValue('--canvas-bg')
+    .trim();
+  return v || '#ffffff';
+}
+
 export class TreemapRenderer {
   /** @param {HTMLCanvasElement} canvas */
   constructor(canvas) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
     this.layout = null;
+    this.background = cssBg();
     this._syncSize();
   }
 
@@ -37,6 +46,13 @@ export class TreemapRenderer {
     this.dpr = dpr;
     this.w = w;
     this.h = h;
+    this.background = cssBg();
+  }
+
+  /** 테마 전환 시 배경색을 갱신하고 다시 그린다. */
+  applyTheme() {
+    this.background = cssBg();
+    this.draw();
   }
 
   /**
@@ -129,8 +145,8 @@ export class TreemapRenderer {
   draw() {
     const { ctx, dpr, w, h } = this;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    // 패널 배경 (네오브루탈리즘 흰 캔버스)
-    ctx.fillStyle = '#ffffff';
+    // 패널 배경 (네오브루탈리즘 색 — 테마에 따라 밝음/어두움)
+    ctx.fillStyle = this.background;
     ctx.fillRect(0, 0, w, h);
     if (this.layout) {
       this._drawCell(this.layout);

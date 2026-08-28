@@ -19,7 +19,7 @@ const TOKEN_DESC = {
 
 function describeToken(token) {
   if (token.type === 'IDENT') return token.value;
-  if (token.type === 'EOF') return '입력 끝';
+  if (token.type === 'EOF') return 'end of input';
   return TOKEN_DESC[token.type] ?? token.type;
 }
 

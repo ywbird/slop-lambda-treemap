@@ -65,8 +65,8 @@ export async function exportPng(renderer, ast, { width, height, colorOverrides }
  * @param {number} w
  * @param {number} h
  */
-export function renderPreview(targetCanvas, ast, colorOverrides, w, h) {
-  const { surface, offRenderer } = buildExportSurface(w, h);
+export function renderPreview(targetCanvas, ast, colorOverrides, w, h, background) {
+  const { surface, offRenderer } = buildExportSurface(w, h, background);
   offRenderer.setLayout(layoutTreemap(ast, paddedBounds(w, h), colorOverrides));
   const targetCtx = targetCanvas.getContext('2d');
   targetCtx.clearRect(0, 0, w, h);
@@ -93,15 +93,17 @@ function getCtx2d(surface) {
 
 /**
  * (w, h) 크기의 오프스크린 캔버스 + TreemapRenderer + 2d ctx 를 만든다.
- * 배경은 흰색으로 미리 채워서 내보낼 때 인셋 영역 바깥이 비지 않게 한다.
+ * 배경색을 미리 채워 내보낼 때 인셋 영역 바깥이 비지 않게 한다.
+ * @param {string} [background='#ffffff'] 배경색 (PNG/GIF 는 흰색 유지, 미리보기는 테마)
  */
-function buildExportSurface(w, h) {
+function buildExportSurface(w, h, background = '#ffffff') {
   const surface = makeOffscreen(w, h);
   const ctx = getCtx2d(surface);
   const offRenderer = new TreemapRenderer(surface);
+  offRenderer.background = background;
   offRenderer.setSize(w, h, 1);
   ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.fillStyle = '#ffffff';
+  ctx.fillStyle = background;
   ctx.fillRect(0, 0, w, h);
   return { surface, ctx, offRenderer };
 }

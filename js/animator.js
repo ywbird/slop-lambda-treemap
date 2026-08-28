@@ -225,9 +225,9 @@ export function slotMorphs(oldLayout, newLayout, path, redex) {
  * 같은 컨텍스트로 computeFrame(ctx, e)을 여러 번 호출해 보간 프레임을 뽑는다.
  * @returns {object|null} null 이면(redex 위치를 찾을 수 없음 등) 프레임 없음.
  */
-export function buildFrameContext({ oldAst, newAst, redex, bounds }) {
-  const oldLayout = layoutTreemap(oldAst, bounds);
-  const newLayout = layoutTreemap(newAst, bounds);
+export function buildFrameContext({ oldAst, newAst, redex, bounds, colorOverrides }) {
+  const oldLayout = layoutTreemap(oldAst, bounds, colorOverrides);
+  const newLayout = layoutTreemap(newAst, bounds, colorOverrides);
   const path = pathToNode(oldAst, redex.app);
   const appCell = findCellByNode(oldLayout, redex.app);
   if (!path || !appCell || appCell.kind !== 'app') {
@@ -249,7 +249,9 @@ export function computeFrame(ctx, eased) {
   const ghosts = [{ cell: ghost.cell, alpha: 1 - eased }];
   for (const { slot, dest } of slots) {
     ghosts.push({
-      cell: slot,
+      // 보간(치환)되는 값의 색을 따라간다. 복합 인자(dest가 app)처럼 단일 색이
+      // 없으면 옛 슬롯 색 유지.
+      cell: { ...slot, color: dest.color ?? slot.color },
       alpha: 1 - eased,
       rect: lerpRect(slot.rect, dest.rect, eased),
     });
@@ -278,8 +280,9 @@ export class ReductionAnimator {
    * @param {(t: number) => number} [options.easing=easeInOutCubic]
    *   EASINGS의 보간 함수
    * @param {() => void} [options.onDone] 완료 콜백
+   * @param {Map<string,string>} [options.colorOverrides] 이름 → hsl 색 (없으면 자동)
    */
-  animateRedex({ oldAst, newAst, redex, durationMs = 700, easing = easeInOutCubic, onDone }) {
+  animateRedex({ oldAst, newAst, redex, durationMs = 700, easing = easeInOutCubic, onDone, colorOverrides }) {
     this.cancel();
 
     const { w, h } = this.renderer.getSize();
@@ -288,6 +291,7 @@ export class ReductionAnimator {
       newAst,
       redex,
       bounds: { x: 0, y: 0, w, h },
+      colorOverrides,
     });
     if (!ctx) {
       onDone?.();
