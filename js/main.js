@@ -36,9 +36,9 @@ const gifProgressTextEl = gifProgressEl.querySelector('.gif-progress-text');
 const gifProgressFillEl = gifProgressEl.querySelector('.gif-bar-fill');
 const colorListEl = document.getElementById('color-list');
 const statusEl = document.getElementById('status');
-const errorEl = document.getElementById('error');
+const logEl = document.getElementById('log');
 const statusOverlayEl = document.getElementById('status-overlay');
-const errorOverlayEl = document.getElementById('error-overlay');
+const logOverlayEl = document.getElementById('log-overlay');
 const layoutModeSelect = document.getElementById('layout-mode');
 const mainEl = document.querySelector('main');
 
@@ -58,9 +58,9 @@ const state = {
 
 /**
  * 상태 영역에 현재 식을 트리맵 색으로 색칠해 표시한다.
- * 접미사(축약 단계 수 등)는 기본 색으로 이어 붙인다.
+ * (로그 메시지는 renderStatus 와 별개로 log() 로 처리한다.)
  */
-function renderStatus(suffix = '') {
+function renderStatus() {
   statusEl.textContent = '';
   if (!state.ast) {
     return;
@@ -86,21 +86,29 @@ function renderStatus(suffix = '') {
     badge.textContent = ` = $${numeral}`;
     statusEl.appendChild(badge);
   }
-  if (suffix) {
+}
+
+/** 로그 영역에 메시지 하나를 표시한다 (최신 메시지만 유지). isError 면 빨간색. */
+function log(message, isError = false) {
+  logEl.textContent = message;
+  logEl.classList.toggle('is-error', !!isError);
+}
+
+function render() {
+  renderStatus();
+  if (state.steps > 0) {
     const tail = document.createElement('span');
-    tail.textContent = suffix;
+    tail.className = 'steps-count';
+    tail.textContent = `  (${state.steps} steps reduced)`;
     statusEl.appendChild(tail);
   }
 }
 
-function render() {
-  renderStatus(state.steps > 0 ? `  (${state.steps} steps reduced)` : '');
-}
-
-/** 트리맵만 모드에서 떠 있는 상태/에러 패널에 동일 텍스트를 복사한다. */
+/** 트리맵만 모드에서 떠 있는 상태/로드 패널에 동일 텍스트를 복사한다. */
 function mirrorStatusToOverlay() {
   if (statusOverlayEl) statusOverlayEl.textContent = statusEl.textContent;
-  if (errorOverlayEl) errorOverlayEl.textContent = errorEl.textContent;
+  if (logOverlayEl) logOverlayEl.textContent = logEl.textContent;
+  if (logOverlayEl) logOverlayEl.classList.toggle('is-error', logEl.classList.contains('is-error'));
 }
 
 /**
@@ -116,7 +124,7 @@ function applyLayoutMode() {
 }
 
 /**
- * status / error 의 어떤 갱신도 오버레이에 그대로 반영되도록 MutationObserver 로
+ * status / log 의 어떤 갱신도 오버레이에 그대로 반영되도록 MutationObserver 로
  * 자동 동기화. 트리맵만 모드에서만 오버레이가 보이므로 다른 모드에서는 사실상
  * 무시되지만 textContent 복사는 비용이 거의 없다.
  */
@@ -125,10 +133,11 @@ new MutationObserver(mirrorStatusToOverlay).observe(statusEl, {
   characterData: true,
   subtree: true,
 });
-new MutationObserver(mirrorStatusToOverlay).observe(errorEl, {
+new MutationObserver(mirrorStatusToOverlay).observe(logEl, {
   childList: true,
   characterData: true,
   subtree: true,
+  attributes: true,
 });
 
 layoutModeSelect.addEventListener('change', () => {
@@ -188,8 +197,7 @@ function readExportSize() {
   const w = parse(exportWidthInput);
   const h = parse(exportHeightInput);
   if (Number.isNaN(w) || Number.isNaN(h)) {
-    statusEl.textContent = '';
-    renderStatus(`  (Invalid export size — falling back to current canvas ${fallback.w}×${fallback.h})`);
+    log(`Invalid export size — falling back to current canvas ${fallback.w}×${fallback.h}`);
     return fallback;
   }
   return { w: clamp(w, 100, 10000), h: clamp(h, 100, 10000) };
@@ -454,7 +462,7 @@ if (variablesList.children.length === 0) {
 
 function parseCurrent() {
   stopEverything();
-  errorEl.textContent = '';
+  log('');
   try {
     const expanded = expandVariables(input.value, readVariables());
     state.ast = parse(expanded);
@@ -469,7 +477,7 @@ function parseCurrent() {
   } catch (e) {
     state.ast = null;
     state.bindingsByName = new Map();
-    errorEl.textContent = e.message;
+    log(e.message, true);
     populateColorList();
     render();
     refreshTreemap();
@@ -498,13 +506,13 @@ stepBtn.addEventListener('click', () => {
   if (!state.ast || state.animating || state.autoRunning) {
     return;
   }
-  errorEl.textContent = '';
+  log('');
   const result = reduceStep(state.ast);
   if (result.reduced) {
     commitStep(result);
   } else {
-    statusEl.textContent = '';
-    renderStatus('  (Normal form — no more reductions)');
+    renderStatus();
+    log('Normal form — no more reductions');
   }
 });
 
@@ -528,14 +536,14 @@ autoBtn.addEventListener('click', () => {
     if (autoSteps >= AUTO_MAX_STEPS) {
       state.autoRunning = false;
       updateButtons();
-      renderStatus('  (Auto-reduce max steps reached)');
+      log('Auto-reduce max steps reached');
       return;
     }
     const result = reduceStep(state.ast);
     if (!result.reduced) {
       state.autoRunning = false;
       updateButtons();
-      renderStatus('  (Normal form — no more reductions)');
+      log('Normal form — no more reductions');
       return;
     }
     autoSteps++;
@@ -556,7 +564,7 @@ resetBtn.addEventListener('click', () => {
   state.colorOverrides.clear();
   state.steps = 0;
   input.value = '';
-  errorEl.textContent = '';
+  log('');
   populateColorList();
   render();
   refreshTreemap();
@@ -567,7 +575,7 @@ exportPngBtn.addEventListener('click', async () => {
   if (!state.ast || state.exporting) return;
   const { w, h } = readExportSize();
   state.exporting = true;
-  errorEl.textContent = '';
+  log('');
   try {
     const blob = await exportPng(renderer, state.ast, {
       width: w,
@@ -575,11 +583,11 @@ exportPngBtn.addEventListener('click', async () => {
       colorOverrides: state.colorOverrides,
     });
     showExportResult(blob);
-    statusEl.textContent = '';
-    renderStatus('  (PNG saved)');
+    renderStatus();
+    log('PNG saved');
     setGifProgress(1, 1, 'PNG saved');
   } catch (e) {
-    errorEl.textContent = e.message;
+    log(e.message, true);
   } finally {
     state.exporting = false;
     updateButtons();
@@ -594,7 +602,7 @@ exportGifBtn.addEventListener('click', async () => {
     state.autoRunning = false;
   }
   state.exporting = true;
-  errorEl.textContent = '';
+  log('');
   updateButtons();
   try {
     const fps = clampFps(Number(exportFpsInput.value));
@@ -607,17 +615,16 @@ exportGifBtn.addEventListener('click', async () => {
       animationMs: animationDuration(),
       pauseMs: clampPause(Number(exportPauseInput.value)),
       onProgress: (i, total) => {
-        statusEl.textContent = '';
-        renderStatus(`  (Generating GIF... ${i}/${total})`);
+        log(`Generating GIF... ${i}/${total}`);
         setGifProgress(i, total);
       },
     });
     showExportResult(blob);
-    statusEl.textContent = '';
-    renderStatus('  (GIF saved)');
+    renderStatus();
+    log('GIF saved');
     setGifProgress(1, 1, 'GIF saved');
   } catch (e) {
-    errorEl.textContent = e.message;
+    log(e.message, true);
   } finally {
     state.exporting = false;
     updateButtons();
